@@ -116,7 +116,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <script>
-        // Firebase Client Configuration
+        // Configuration Firebase Client
         const firebaseConfig = {
             apiKey: "AIzaSyDux4S_lY_8mygOBeimpGXl5xeNI0HGeAA",
             authDomain: "imagination-f2e5c.firebaseapp.com",
@@ -131,7 +131,7 @@
         let auth;
         let db;
 
-        // Assurez-vous que le DOM est complètement chargé avant d'exécuter le script
+        // S'assurer que le DOM est complètement chargé avant d'exécuter le script
         document.addEventListener('DOMContentLoaded', () => {
             // Initialisation de l'application Firebase (ne s'exécute qu'une seule fois)
             if (!firebase.apps.length) {
@@ -145,8 +145,8 @@
             db = firebase.firestore();
 
             // --- NOUVEAU LOG POUR VÉRIFIER L'INITIALISATION ---
-            console.log("DOMContentLoaded fired.");
-            console.log("Firebase initialized:", { appInitialized: !!app, authInstance: !!auth, dbInstance: !!db });
+            console.log("DEBUG [register.html]: DOMContentLoaded déclenché.");
+            console.log("DEBUG [register.html]: Firebase initialisé:", { appInitialized: !!app, authInstance: !!auth, dbInstance: !!db });
             // --- FIN NOUVEAU LOG ---
 
             // Références aux éléments DOM
@@ -176,8 +176,8 @@
                     messageContent.textContent = content;
                     messageBox.classList.remove('hidden');
                 } else {
-                    console.error("Erreur: Impossible d'afficher la modale, éléments manquants ou non initialisés.");
-                    alert(title + "\n\n" + content); // Fallback to alert
+                    console.error("Erreur [register.html]: Impossible d'afficher la modale, éléments manquants ou non initialisés.");
+                    alert(title + "\n\n" + content); // Fallback vers alert()
                 }
             }
 
@@ -221,28 +221,28 @@
                     }
                     
                     showMessage("Progression", "Validation réussie. Tentative de création du compte...");
-                    console.log("Validation réussie, préparation de la création du compte..."); // NOUVEAU LOG
+                    console.log("DEBUG [register.html]: Validation réussie, préparation de la création du compte...");
 
                     try {
                         // 1. Création de l'utilisateur avec Firebase Authentication
-                        console.log("Tentative de création de l'utilisateur Firebase Auth pour l'email:", email); // NOUVEAU LOG
+                        console.log("DEBUG [register.html]: Tentative de création de l'utilisateur Firebase Auth pour l'email:", email);
                         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                         const user = userCredential.user;
 
-                        // --- NOUVEAU LOG CRITIQUE ---
-                        console.log("Résultat de createUserWithEmailAndPassword. User object:", user);
+                        // --- LOG CRITIQUE : VÉRIFICATION DE L'OBJET UTILISATEUR DE FIREBASE AUTH ---
+                        console.log("DEBUG [register.html]: Résultat de createUserWithEmailAndPassword. User object:", user);
                         if (!user || !user.uid) {
-                            console.error("Erreur: user ou user.uid est null/undefined après createUserWithEmailAndPassword.");
+                            console.error("ERREUR CRITIQUE [register.html]: user ou user.uid est null/undefined après createUserWithEmailAndPassword. La création d'authentification a peut-être échoué silencieusement.");
                             showMessage("Erreur Interne", "Impossible d'obtenir l'ID utilisateur après la création du compte. Contactez l'administrateur.");
                             return; // Arrêter l'exécution ici si l'utilisateur n'est pas valide
                         }
-                        // --- FIN NOUVEAU LOG CRITIQUE ---
+                        // --- FIN LOG CRITIQUE ---
 
                         showMessage("Progression", "Compte Firebase Auth créé avec succès. UID: " + user.uid + ". Enregistrement des détails dans Firestore...");
-                        console.log("Compte Firebase Auth créé avec succès. UID:", user.uid); // NOUVEAU LOG
+                        console.log("DEBUG [register.html]: Compte Firebase Auth créé avec succès. UID:", user.uid);
 
                         // 2. Stockage des données utilisateur supplémentaires dans Firestore
-                        console.log("Tentative d'enregistrement dans Firestore pour l'UID:", user.uid); // NOUVEAU LOG
+                        console.log("DEBUG [register.html]: Tentative d'enregistrement dans Firestore pour l'UID:", user.uid);
                         await db.collection("users").doc(user.uid).set({
                             userId: user.uid, 
                             firstName: firstName,
@@ -250,13 +250,11 @@
                             username: username,
                             email: email,
                             phone: phone || null,
-                            role: 'user', 
+                            role: 'user', // Rôle par défaut
                             createdAt: new Date().toISOString(), 
                             messages: [] 
                         });
-
-                        showMessage("Progression", "Détails utilisateur enregistrés dans Firestore. Redirection...");
-                        console.log("Détails utilisateur enregistrés dans Firestore."); // NOUVEAU LOG
+                        console.log("DEBUG [register.html]: Détails utilisateur enregistrés dans Firestore avec succès.");
 
                         // 3. Stockage des informations de base de l'utilisateur dans localStorage
                         localStorage.setItem('iwUserAccount', JSON.stringify({
@@ -266,7 +264,7 @@
                             phone: phone || null,
                             role: 'user' 
                         }));
-                        console.log("Informations utilisateur stockées dans localStorage."); // NOUVEAU LOG
+                        console.log("DEBUG [register.html]: Informations utilisateur stockées dans localStorage.");
 
                         // Message final de succès et redirection
                         showMessage("Inscription Réussie !", `Bienvenue, ${username} ! Vous pouvez maintenant vous connecter.`);
@@ -276,10 +274,11 @@
 
                     } catch (error) {
                         // Gestion des erreurs Firebase Auth et Firestore
-                        console.error("Erreur lors de l'inscription Firebase (bloc catch):", error); // LOG D'ERREUR DÉTAILLÉ
+                        console.error("ERREUR [register.html]: Erreur lors de l'inscription Firebase (bloc catch):", error); // LOG D'ERREUR DÉTAILLÉ
 
                         let errorMessage = "Une erreur inattendue est survenue lors de l'inscription.";
 
+                        // Messages d'erreur spécifiques de Firebase Auth
                         switch (error.code) {
                             case 'auth/email-already-in-use':
                                 errorMessage = "Cette adresse e-mail est déjà utilisée. Veuillez vous connecter ou utiliser un autre email.";
@@ -296,9 +295,13 @@
                             case 'auth/network-request-failed':
                                 errorMessage = "Erreur réseau. Vérifiez votre connexion internet.";
                                 break;
-                            // Erreurs Firestore (can be more generic if Firestore is not accessible)
-                            case 'unavailable': 
-                            case 'internal': 
+                            // Erreurs Firestore (si la lecture/écriture Firestore échoue en raison des règles par exemple)
+                            case 'permission-denied':
+                                errorMessage = "Vous n'avez pas la permission d'effectuer cette action. Vérifiez les règles de sécurité Firestore.";
+                                console.error("DEBUG [register.html]: Erreur de permission Firestore détectée.");
+                                break;
+                            case 'unavailable':
+                            case 'internal':
                                 errorMessage = "Problème de connexion aux services Firebase. Veuillez vérifier votre connexion internet ou la configuration Firebase de votre projet.";
                                 break;
                             default:
@@ -309,12 +312,10 @@
                     }
                 });
             } else {
-                console.error("Erreur: L'élément 'registerForm' n'a pas été trouvé. Le script ne peut pas s'attacher au formulaire.");
+                console.error("ERREUR [register.html]: L'élément 'registerForm' n'a pas été trouvé. Le script ne peut pas s'attacher au formulaire.");
                 showMessage("Erreur Critique", "Le formulaire d'inscription est introuvable sur la page.");
             }
-        }); // End of DOMContentLoaded
+        }); // Fin de DOMContentLoaded
     </script>
 </body>
 </html>
-
-    
