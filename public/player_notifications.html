@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mes Notifications - Imagination World</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        .container {
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 1rem;
+        }
+        @media (min-width: 768px) {
+            .container {
+                max-width: 768px;
+            }
+        }
+        .notification-card {
+            border-left: 4px solid;
+            margin-bottom: 1rem;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .notification-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        /* Status specific colors */
+        .status-pending { border-color: #f6ad55; /* Orange-400 */ }
+        .status-accepted { border-color: #f6e05e; /* Yellow-400 */ }
+        .status-completed { border-color: #48bb78; /* Green-500 */ }
+        .status-refused { border-color: #f56565; /* Red-500 */ }
+        .status-overwritten { border-color: #a0aec0; /* Gray-400 */ } /* New status color */
+
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+            position: fixed; /* Added fixed positioning */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-content {
+            animation: fadeInScale 0.3s ease-out forwards;
+            background-color: #fff; /* Added white background */
+            padding: 1.5rem; /* Added padding */
+            border-radius: 0.5rem; /* Added border-radius */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Added shadow */
+            max-width: 90%; /* Responsive width */
+            width: 100%; /* Full width within max-width */
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center min-h-screen p-4">
+
+    <div class="container bg-white shadow-xl rounded-lg p-6 md:p-8 mt-8 w-full">
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-6">Mes Notifications</h1>
+        <p class="text-center text-gray-600 mb-8">Consultez l'état de vos soumissions de personnages et les messages de l'administration.</p>
+
+        <div class="mb-6 text-center">
+            <a href="index.html" class="inline-block bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition duration-150 ease-in-out">
+                Retour au Créateur
+            </a>
+            <button id="refreshNotifications" class="ml-4 bg-gray-400 text-white py-2 px-4 rounded-md hover:bg-gray-500 transition duration-150 ease-in-out">
+                Rafraîchir
+            </button>
+        </div>
+
+        <!-- Not Logged In Message -->
+        <div id="notLoggedInMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-center" role="alert">
+            <strong class="font-bold">Accès refusé !</strong>
+            <span class="block sm:inline"> Vous devez être connecté pour voir vos notifications. Veuillez vous <a href="login.html" class="font-semibold underline">connecter</a> ou vous <a href="register.html" class="font-semibold underline">inscrire</a>.</span>
+        </div>
+
+        <!-- Section pour les soumissions de personnages -->
+        <h2 class="text-2xl font-bold text-center text-gray-800 mb-4 mt-8">Statut des Personnages</h2>
+        <div id="playerNotificationsList" class="space-y-4">
+            <p id="noNotificationsMessage" class="text-gray-500 text-center hidden">Aucune soumission de personnage pour le moment.</p>
+            <!-- Notifications will be loaded here -->
+        </div>
+
+        <!-- Section pour les messages de l'administrateur -->
+        <h2 class="text-2xl font-bold text-center text-gray-800 mb-4 mt-8">Messages des Administrateurs</h2>
+        <div id="adminMessagesList" class="space-y-4">
+            <p id="noAdminMessages" class="text-gray-500 text-center hidden">Aucun message de l'administrateur pour le moment.</p>
+            <!-- Admin messages will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Modale de Message -->
+    <div id="messageBox" class="fixed inset-0 modal-overlay flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center modal-content">
+            <h3 id="messageTitle" class="text-xl font-bold mb-4 text-gray-800"></h3>
+            <p id="messageContent" class="text-gray-700 mb-6 text-sm"></p>
+            <button id="closeMessageBox" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Chargement des SDK Firebase via CDN (version 8.10.1 - très compatible) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // Firebase Client Configuration (needed for authentication status check if not using localStorage directly)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDux4S_lY_8mygOBeimpGXl5xeNI0HGeAA",
+            authDomain: "imagination-f2e5c.firebaseapp.com",
+            projectId: "imagination-f2e5c",
+            storageBucket: "imagination-f2e5c.firebasestorage.app",
+            messagingSenderId: "182206843362",
+            appId: "1:182206843362:web:eda2dda1ef85a624a811bb",
+            measurementId: "G-NK53DJQWH6"
+        };
+
+        let app;
+        let auth;
+        let db;
+
+        const playerNotificationsList = document.getElementById('playerNotificationsList');
+        const noNotificationsMessage = document.getElementById('noNotificationsMessage');
+        const notLoggedInMessage = document.getElementById('notLoggedInMessage');
+        const adminMessagesList = document.getElementById('adminMessagesList');
+        const noAdminMessages = document.getElementById('noAdminMessages');
+        const refreshNotificationsButton = document.getElementById('refreshNotifications');
+
+        const messageBox = document.getElementById('messageBox');
+        const messageTitle = document.getElementById('messageTitle');
+        const messageContent = document.getElementById('messageContent');
+        const closeMessageBoxBtn = document.getElementById('closeMessageBox');
+
+        const WHATSAPP_GROUP_LINK = "https://chat.whatsapp.com/DKilTON2xUW1IEXzDndaxx?mode=r_t"; // Corrected link
+
+        // Function to show a message modal
+        function showMessage(title, content) {
+            if (messageTitle) messageTitle.textContent = title;
+            if (messageContent) messageContent.textContent = content;
+            if (messageBox) messageBox.classList.remove('hidden');
+            else console.error("Error: Could not display modal, missing or uninitialized elements.");
+        }
+
+        // Close message modal
+        if (closeMessageBoxBtn) {
+            closeMessageBoxBtn.addEventListener('click', () => {
+                if (messageBox) messageBox.classList.add('hidden');
+            });
+        }
+
+        async function loadPlayerNotifications() {
+            // Ensure Firebase is initialized
+            if (!firebase.apps.length) {
+                app = firebase.initializeApp(firebaseConfig);
+            } else {
+                app = firebase.app();
+            }
+            auth = firebase.auth();
+            db = firebase.firestore();
+
+
+            const userAccount = JSON.parse(localStorage.getItem('iwUserAccount'));
+            if (!userAccount || !userAccount.userId) {
+                notLoggedInMessage.classList.remove('hidden');
+                playerNotificationsList.innerHTML = '';
+                noNotificationsMessage.classList.add('hidden');
+                adminMessagesList.innerHTML = '';
+                noAdminMessages.classList.add('hidden');
+                return;
+            }
+
+            notLoggedInMessage.classList.add('hidden');
+            const userId = userAccount.userId;
+
+            try {
+                // Fetch character submissions for this user from the API
+                const submissionsResponse = await fetch(`/api/submissions?userId=${userId}`);
+                const userSubmissions = submissionsResponse.ok ? await submissionsResponse.json() : [];
+
+                playerNotificationsList.innerHTML = ''; // Clear existing notifications
+
+                if (userSubmissions.length === 0) {
+                    noNotificationsMessage.classList.remove('hidden');
+                } else {
+                    noNotificationsMessage.classList.add('hidden');
+                }
+
+                userSubmissions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Sort by newest first
+
+                userSubmissions.forEach(submission => {
+                    const card = document.createElement('div');
+                    let statusClass = '';
+                    let statusText = '';
+                    let detailsContent = '';
+
+                    switch (submission.status) {
+                        case 'pending':
+                            statusClass = 'status-pending bg-orange-50';
+                            statusText = 'En Attente';
+                            detailsContent = '<p class="text-gray-600">Votre soumission est en cours d\'examen par l\'administrateur.</p>';
+                            break;
+                        case 'accepted':
+                            statusClass = 'status-accepted bg-yellow-50';
+                            statusText = 'Acceptée (Carte en attente)';
+                            detailsContent = `<p class="text-gray-600">Félicitations ! Votre personnage a été accepté. La carte de joueur est en cours de préparation par l'administrateur. Restez à l'écoute !</p>`;
+                            break;
+                        case 'completed':
+                            statusClass = 'status-completed bg-teal-50';
+                            statusText = 'Intégration Complétée';
+                            detailsContent = `
+                                <p class="text-gray-600">Félicitations ! Votre intégration est complète. Voici votre carte de joueur :</p>
+                                ${submission.playerCardImage ? `<img src="${submission.playerCardImage}" alt="Votre carte de joueur" class="mt-4 max-w-full h-auto rounded-md border border-gray-300 mx-auto" style="max-height: 200px;">` : '<p class="text-gray-500 mt-4">Image de la carte non disponible.</p>'}
+                                <p class="text-gray-600 mt-4">Rejoignez le groupe WhatsApp pour commencer votre aventure :</p>
+                                <a href="${WHATSAPP_GROUP_LINK}" target="_blank" class="inline-block bg-green-700 text-white py-2 px-4 rounded-md hover:bg-green-800 transition duration-150 ease-in-out mt-2 whatsapp-link" data-submission-id="${submission.id}" data-user-id="${userId}" data-character-name="${submission.characterData.nomAvatar}">Rejoindre le Groupe WhatsApp</a>
+                            `;
+                            break;
+                        case 'refused':
+                            statusClass = 'status-refused bg-red-50';
+                            statusText = 'Refusée';
+                            detailsContent = `<p class="text-gray-600">Votre soumission pour **${submission.characterData.nomAvatar}** a été refusée pour les raisons suivantes :</p>`;
+                            if (submission.refusalDetails && submission.refusalDetails.reasons && submission.refusalDetails.reasons.length > 0) {
+                                detailsContent += '<ul class="list-disc list-inside mt-2 text-red-700">';
+                                submission.refusalDetails.reasons.forEach(reason => {
+                                    detailsContent += `<li>${reason}</li>`;
+                                });
+                                detailsContent += '</ul>';
+                            }
+                            if (submission.refusalDetails && submission.refusalDetails.customReason) {
+                                detailsContent += `<p class="mt-2 text-gray-600">**Raison supplémentaire :** ${submission.refusalDetails.customReason}</p>`;
+                            }
+                            detailsContent += '<p class="mt-4 text-gray-600">Veuillez corriger ces points et soumettre un nouveau formulaire.</p>';
+                            break;
+                        case 'overwritten':
+                            statusClass = 'status-overwritten bg-gray-50';
+                            statusText = 'Ancien Personnage Remplacé';
+                            detailsContent = `<p class="text-gray-600">Votre ancien personnage **${submission.characterData.nomAvatar}** a été remplacé par un nouveau personnage.</p>`;
+                            break;
+                        default:
+                            statusClass = 'bg-gray-50';
+                            statusText = 'Statut Inconnu';
+                            detailsContent = '<p class="text-gray-600">Le statut de cette soumission est inconnu.</p>';
+                            break;
+                    }
+
+                    card.className = `notification-card p-4 rounded-md shadow-md ${statusClass}`;
+                    card.innerHTML = `
+                        <h3 class="font-bold text-lg mb-2">${submission.characterData.nomAvatar}</h3>
+                        <p class="text-sm text-gray-700 mb-1">Soumis le: ${new Date(submission.timestamp).toLocaleDateString()} à ${new Date(submission.timestamp).toLocaleTimeString()}</p>
+                        <p class="font-semibold text-gray-800 mb-2">Statut: <span class="font-bold ${statusClass.includes('red') ? 'text-red-700' : (statusClass.includes('green') ? 'text-green-700' : (statusClass.includes('yellow') ? 'text-yellow-700' : (statusClass.includes('teal') ? 'text-teal-700' : (statusClass.includes('orange') ? 'text-orange-700' : 'text-gray-700'))))}">${statusText}</span></p>
+                        <div class="mt-3 text-sm">
+                            ${detailsContent}
+                        </div>
+                    `;
+                    playerNotificationsList.appendChild(card);
+                });
+
+                // Add event listeners for WhatsApp links if they exist
+                document.querySelectorAll('.whatsapp-link').forEach(link => {
+                    link.addEventListener('click', async (event) => {
+                        event.preventDefault(); // Prevent default link behavior
+
+                        const submissionId = event.target.dataset.submissionId;
+                        const userId = event.target.dataset.userId;
+                        const characterName = event.target.dataset.characterName;
+
+                        try {
+                            const alertResponse = await fetch('/api/alerts', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    type: 'whatsapp_joined',
+                                    userId: userId,
+                                    characterName: characterName,
+                                    submissionId: submissionId,
+                                    message: `Le joueur ${userAccount.username} (ID: ${userId}) a cliqué sur le lien WhatsApp pour son personnage "${characterName}".`
+                                })
+                            });
+
+                            if (alertResponse.ok) {
+                                window.location.href = 'whatsapp_success.html'; // Redirect on success
+                            } else {
+                                const errorResult = await alertResponse.json();
+                                showMessage("Erreur WhatsApp", errorResult.message || "Impossible d'envoyer la notification à l'administrateur.");
+                            }
+                        } catch (error) {
+                            console.error("Erreur réseau lors de l'envoi de l'alerte WhatsApp:", error);
+                            showMessage("Erreur Réseau", "Impossible de communiquer avec le serveur.");
+                        }
+                    });
+                });
+
+
+                // --- Load and display admin messages ---
+                // Fetch user data including messages from the API
+                const userResponse = await fetch(`/api/users?userId=${userId}`);
+                const userData = userResponse.ok ? await userResponse.json() : { messages: [] };
+                const adminMessages = userData.messages || [];
+
+                adminMessagesList.innerHTML = ''; // Clear existing messages
+                if (adminMessages.length === 0) {
+                    noAdminMessages.classList.remove('hidden');
+                } else {
+                    noAdminMessages.classList.add('hidden');
+                    adminMessages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Sort by newest first
+                    adminMessages.forEach(message => {
+                        const messageCard = document.createElement('div');
+                        let messageClass = 'bg-blue-50 border-l-4 border-blue-500 p-4 rounded-md shadow-sm';
+                        if (message.read) {
+                            messageClass += ' opacity-70'; // Visually dim if read
+                        }
+                        messageCard.className = messageClass;
+                        messageCard.dataset.messageId = message.id; // Store message ID for marking as read
+
+                        messageCard.innerHTML = `
+                            <p class="font-semibold text-blue-800 mb-1">Message de l'Administration</p>
+                            <p class="text-gray-700 text-sm mb-2">${message.content}</p>
+                            <p class="text-xs text-gray-500">Reçu le: ${new Date(message.timestamp).toLocaleDateString()} à ${new Date(message.timestamp).toLocaleTimeString()}</p>
+                            ${!message.read ? `<button class="mark-as-read-btn mt-2 bg-blue-500 text-white text-xs py-1 px-3 rounded-full hover:bg-blue-600 transition">Marquer comme lu</button>` : '<p class="text-xs text-gray-500 mt-2">Lu</p>'}
+                        `;
+                        adminMessagesList.appendChild(messageCard);
+                    });
+
+                    // Add event listeners for "Mark as Read" buttons
+                    document.querySelectorAll('.mark-as-read-btn').forEach(button => {
+                        button.addEventListener('click', async (event) => {
+                            const messageId = event.target.closest('[data-message-id]').dataset.messageId; // Get message ID from the card
+                            try {
+                                const response = await fetch('/api/users', { // API endpoint to update user messages
+                                    method: 'PUT', // Use PUT to update the user's message array
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ userId: userId, messageId: messageId }) // Send user ID and message ID
+                                });
+                                if (response.ok) {
+                                    loadPlayerNotifications(); // Reload list to reflect the change (message marked as read)
+                                } else {
+                                    const errorResult = await response.json();
+                                    console.error("Erreur lors du marquage du message comme lu:", errorResult);
+                                    showMessage("Erreur", errorResult.message || "Impossible de marquer le message comme lu.");
+                                }
+                            } catch (error) {
+                                console.error("Erreur réseau lors du marquage du message comme lu:", error);
+                                showMessage("Erreur Réseau", "Impossible de communiquer avec le serveur.");
+                            }
+                        });
+                    });
+                }
+
+            } catch (error) {
+                console.error("Erreur lors du chargement des notifications joueur:", error);
+                noNotificationsMessage.textContent = "Erreur de chargement des notifications. Vérifiez votre connexion.";
+                noNotificationsMessage.classList.remove('hidden');
+                notLoggedInMessage.classList.add('hidden');
+            }
+        }
+
+        // Initial load and refresh button listener
+        document.addEventListener('DOMContentLoaded', loadPlayerNotifications);
+        if (refreshNotificationsButton) {
+             refreshNotificationsButton.addEventListener('click', loadPlayerNotifications);
+        }
+    </script>
+</body>
+</html>
+                               

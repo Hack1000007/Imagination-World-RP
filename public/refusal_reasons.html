@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raisons de Refus - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        .container {
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 1.5rem;
+        }
+        @media (min-width: 640px) {
+            .container {
+                max-width: 600px;
+            }
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+            position: fixed; /* Added fixed positioning */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-content {
+            animation: fadeInScale 0.3s ease-out forwards;
+            background-color: #fff; /* Added white background */
+            padding: 1.5rem; /* Added padding */
+            border-radius: 0.5rem; /* Added border-radius */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Added shadow */
+            max-width: 90%; /* Responsive width */
+            width: 100%; /* Full width within max-width */
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="container bg-white shadow-xl rounded-lg p-6 md:p-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-6">Motif de Refus du Personnage</h1>
+        <p class="text-center text-gray-600 mb-8">Sélectionnez les raisons du refus pour : <span id="characterNameDisplay" class="font-bold text-blue-700"></span> (ID Joueur: <span id="userIdDisplay" class="font-bold text-purple-700"></span>)</p>
+
+        <p id="loadingMessage" class="text-center text-blue-600 font-semibold mb-4">Chargement des détails de la soumission...</p>
+        <p id="errorMessage" class="text-center text-red-600 font-semibold mb-4 hidden">Une erreur est survenue.</p>
+
+        <form id="refusalForm" class="space-y-6 hidden">
+            <div class="bg-gray-50 p-5 rounded-md shadow-sm">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Raisons prédéfinies :</h2>
+                <div id="predefinedReasons" class="space-y-2">
+                    <!-- Reasons will be injected by JavaScript -->
+                </div>
+            </div>
+
+            <div class="bg-gray-50 p-5 rounded-md shadow-sm">
+                <label for="customReason" class="block text-sm font-medium text-gray-700 mb-1">Raison personnalisée (optionnel) :</label>
+                <textarea id="customReason" name="customReason" rows="4" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 resize-y" placeholder="Ajoutez une raison spécifique si nécessaire."></textarea>
+            </div>
+            
+            <div class="flex justify-between gap-4 mt-8">
+                <button type="button" id="cancelButton" class="w-1/2 bg-gray-400 text-white py-3 px-4 rounded-md font-semibold text-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition duration-150 ease-in-out">
+                    Annuler
+                </button>
+                <button type="submit" class="w-1/2 bg-red-600 text-white py-3 px-4 rounded-md font-semibold text-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-150 ease-in-out">
+                    Refuser la Soumission
+                </button>
+            </div>
+        </form>
+
+        <!-- Confirmation Section -->
+        <div id="confirmationSection" class="hidden mt-8 p-6 rounded-md bg-red-100 border border-red-300 text-center">
+            <h2 class="text-2xl font-bold text-red-800 mb-3">Soumission Refusée avec succès !</h2>
+            <p class="text-gray-700 mb-4">Le statut du personnage a été mis à jour et le joueur en a été informé.</p>
+            <a href="admin.html" class="inline-block bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">
+                Retour au Tableau de Bord
+            </a>
+        </div>
+    </div>
+
+    <!-- Modale de Message -->
+    <div id="messageBox" class="fixed inset-0 modal-overlay flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center modal-content">
+            <h3 id="messageTitle" class="text-xl font-bold mb-4 text-gray-800"></h3>
+            <p id="messageContent" class="text-gray-700 mb-6 text-sm"></p>
+            <button id="closeMessageBox" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Chargement des SDK Firebase via CDN (version 8.10.1 - très compatible) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // Firebase Client Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDux4S_lY_8mygOBeimpGXl5xeNI0HGeAA",
+            authDomain: "imagination-f2e5c.firebaseapp.com",
+            projectId: "imagination-f2e5c",
+            storageBucket: "imagination-f2e5c.firebasestorage.app",
+            messagingSenderId: "182206843362",
+            appId: "1:182206843362:web:eda2dda1ef85a624a811bb",
+            measurementId: "G-NK53DJQWH6"
+        };
+
+        let app;
+        let auth;
+        let db;
+
+        const PREDEFINED_REASONS = [
+            "Informations manquantes ou incorrectes (Nom, Téléphone, Sexe).",
+            "Nombre de races sélectionnées incorrect (doit être 1 ou 2).",
+            "Classe invalide ou incompatible (ex: Sorcière non féminin).",
+            "Nombre d'attributs incorrect (doit être 3).",
+            "Compétences uniques manquantes ou incomplètes (Nom ou Description).",
+            "Points de statistiques mal répartis (doit être exactement 5000).",
+            "Image de personnage manquante ou de mauvaise qualité.",
+            "Contenu inapproprié dans la description ou le nom.",
+            "Ne respecte pas les règles générales d'Imagination World."
+        ];
+
+        let currentSubmissionId = null;
+        let currentUserId = null;
+
+        const characterNameDisplay = document.getElementById('characterNameDisplay');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const refusalForm = document.getElementById('refusalForm');
+        const predefinedReasonsContainer = document.getElementById('predefinedReasons');
+        const customReasonInput = document.getElementById('customReason');
+        const cancelButton = document.getElementById('cancelButton');
+        const confirmationSection = document.getElementById('confirmationSection');
+
+        const messageBox = document.getElementById('messageBox');
+        const messageTitle = document.getElementById('messageTitle');
+        const messageContent = document.getElementById('messageContent');
+        const closeMessageBoxBtn = document.getElementById('closeMessageBox');
+
+        // Function to show a message modal
+        function showMessage(title, content) {
+            if (messageTitle) messageTitle.textContent = title;
+            if (messageContent) messageContent.textContent = content;
+            if (messageBox) messageBox.classList.remove('hidden');
+            else console.error("Error: Could not display modal, missing or uninitialized elements.");
+        }
+
+        // Close message modal
+        if (closeMessageBoxBtn) {
+            closeMessageBoxBtn.addEventListener('click', () => {
+                if (messageBox) messageBox.classList.add('hidden');
+            });
+        }
+
+        // Populate predefined reasons checkboxes
+        function populatePredefinedReasons() {
+            if (!predefinedReasonsContainer) {
+                console.error("Erreur: L'élément predefinedReasonsContainer est introuvable.");
+                return;
+            }
+            predefinedReasonsContainer.innerHTML = '';
+            PREDEFINED_REASONS.forEach((reason, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-start';
+                div.innerHTML = `
+                    <input type="checkbox" id="reason${index}" name="reason" value="${reason}" class="form-checkbox h-4 w-4 text-red-600 rounded mt-1">
+                    <label for="reason${index}" class="ml-2 text-gray-700 text-sm">${reason}</label>
+                `;
+                predefinedReasonsContainer.appendChild(div);
+            });
+        }
+
+        // Get URL parameters
+        function getParamsFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return {
+                submissionId: urlParams.get('submissionId'),
+                userId: urlParams.get('userId')
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => { 
+            // Initialize Firebase
+            if (!firebase.apps.length) {
+                app = firebase.initializeApp(firebaseConfig);
+            } else {
+                app = firebase.app();
+            }
+            auth = firebase.auth();
+            db = firebase.firestore();
+
+            populatePredefinedReasons();
+            const params = getParamsFromUrl();
+            currentSubmissionId = params.submissionId;
+            currentUserId = params.userId;
+
+            if (!currentSubmissionId || !currentUserId) {
+                if (loadingMessage) loadingMessage.classList.add('hidden');
+                if (errorMessage) {
+                    errorMessage.classList.remove('hidden');
+                    errorMessage.textContent = "Erreur : IDs de soumission ou de joueur manquants dans l'URL.";
+                }
+                return;
+            }
+
+            try {
+                // Fetch ALL submissions and find the specific one
+                const response = await fetch(`/api/submissions`);
+                if (!response.ok) throw new Error(`Failed to fetch submissions: ${response.status}`);
+                const submissions = await response.json();
+                
+                const submission = submissions.find(s => s.id === currentSubmissionId && s.userId === currentUserId);
+
+                if (submission && submission.status === 'pending') {
+                    if (loadingMessage) loadingMessage.classList.add('hidden');
+                    if (refusalForm) refusalForm.classList.remove('hidden');
+                    if (characterNameDisplay) characterNameDisplay.textContent = submission.characterData.nomAvatar;
+                    if (userIdDisplay) userIdDisplay.textContent = submission.userId;
+                } else {
+                    if (loadingMessage) loadingMessage.classList.add('hidden');
+                    if (errorMessage) {
+                        errorMessage.classList.remove('hidden');
+                        errorMessage.textContent = "Erreur : Soumission introuvable ou déjà traitée.";
+                    }
+                }
+            } catch (error) {
+                console.error("Erreur lors du chargement de la soumission:", error);
+                if (loadingMessage) loadingMessage.classList.add('hidden');
+                if (errorMessage) {
+                    errorMessage.classList.remove('hidden');
+                    errorMessage.textContent = `Erreur réseau lors du chargement des détails de la soumission: ${error.message}.`;
+                }
+            }
+        });
+
+        // Handle form submission for refusal
+        if (refusalForm) {
+            refusalForm.addEventListener('submit', async function(event) { 
+                event.preventDefault();
+
+                const selectedReasons = Array.from(document.querySelectorAll('input[name="reason"]:checked')).map(cb => cb.value);
+                const customReason = customReasonInput?.value.trim();
+
+                if (selectedReasons.length === 0 && !customReason) {
+                    showMessage("Validation", "Veuillez sélectionner au moins une raison prédéfinie ou ajouter une raison personnalisée.");
+                    return;
+                }
+
+                const refusalDetails = {
+                    reasons: selectedReasons,
+                    customReason: customReason || null
+                };
+
+                try {
+                    const response = await fetch('/api/submissions', { 
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            submissionId: currentSubmissionId, 
+                            status: 'refused', 
+                            refusalDetails: refusalDetails 
+                        })
+                    });
+
+                    if (response.ok) {
+                        if (refusalForm) refusalForm.classList.add('hidden');
+                        if (confirmationSection) confirmationSection.classList.remove('hidden');
+                        showMessage("Succès", `Soumission pour ${characterNameDisplay?.textContent || 'le personnage'} refusée avec succès.`);
+                    } else {
+                        const errorResult = await response.json();
+                        showMessage("Erreur", errorResult.message || "Erreur lors du refus de la soumission.");
+                    }
+                } catch (error) {
+                    console.error("Erreur réseau lors du refus de la soumission:", error);
+                    showMessage("Erreur Réseau", "Impossible de communiquer avec le serveur.");
+                }
+            });
+        }
+
+        // Handle cancel button
+        if (cancelButton) {
+            cancelButton.addEventListener('click', () => {
+                window.location.href = 'admin.html'; // Go back to admin dashboard
+            });
+        }
+    </script>
+</body>
+</html>
+

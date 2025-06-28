@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription - Imagination World</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Global CSS styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        .container {
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 1.5rem;
+        }
+        @media (min-width: 640px) {
+            .container {
+                max-width: 480px;
+            }
+        }
+        /* Modal message styles */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50; /* Ensure it's on top */
+        }
+        .modal-content {
+            animation: fadeInScale 0.3s ease-out forwards;
+            background-color: #fff;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 90%;
+            width: 100%;
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="container bg-white shadow-xl rounded-lg p-6 md:p-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-6">Inscription</h1>
+        <p class="text-center text-gray-600 mb-8">Créez votre compte pour Imagination World.</p>
+
+        <form id="registerForm" class="space-y-6">
+            <div>
+                <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">Prénom :</label>
+                <input type="text" id="firstName" name="firstName" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Votre prénom" required>
+            </div>
+            <div>
+                <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Nom :</label>
+                <input type="text" id="lastName" name="lastName" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Votre nom de famille" required>
+            </div>
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Nom d'utilisateur :</label>
+                <input type="text" id="username" name="username" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Un nom d'utilisateur unique" required>
+            </div>
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Adresse E-mail :</label>
+                <input type="email" id="email" name="email" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="votre@email.com" required>
+                <p class="text-xs text-gray-500 mt-1">L'email est requis pour l'inscription.</p>
+            </div>
+            <div>
+                <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Numéro de Téléphone (avec indicatif pays) :</label>
+                <input type="tel" id="phone" name="phone" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Ex: +33612345678">
+                <p class="text-xs text-gray-500 mt-1">Optionnel, mais recommandé.</p>
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Mot de passe :</label>
+                <input type="password" id="password" name="password" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Votre mot de passe" required>
+            </div>
+            <div>
+                <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirmer le mot de passe :</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Confirmez votre mot de passe" required>
+            </div>
+            
+            <button type="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-semibold text-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out">
+                S'inscrire
+            </button>
+        </form>
+
+        <p class="text-center text-gray-600 text-sm mt-6">
+            Déjà un compte ? <a href="login.html" class="text-blue-600 hover:underline font-medium">Connectez-vous ici</a>
+        </p>
+
+        <!-- Message modal -->
+        <div id="messageBox" class="fixed inset-0 modal-overlay flex items-center justify-center hidden z-50">
+            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center modal-content">
+                <h3 id="messageTitle" class="text-xl font-bold mb-4 text-gray-800"></h3>
+                <p id="messageContent" class="text-gray-700 mb-6 text-sm"></p>
+                <button id="closeMessageBox" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chargement des SDK Firebase via CDN (version 8.10.1 - très compatible) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // Firebase Client Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDux4S_lY_8mygOBeimpGXl5xeNI0HGeAA",
+            authDomain: "imagination-f2e5c.firebaseapp.com",
+            projectId: "imagination-f2e5c",
+            storageBucket: "imagination-f2e5c.firebasestorage.app",
+            messagingSenderId: "182206843362",
+            appId: "1:182206843362:web:eda2dda1ef85a624a811bb",
+            measurementId: "G-NK53DJQWH6"
+        };
+
+        let app;
+        let auth;
+        let db;
+
+        // Assurez-vous que le DOM est complètement chargé avant d'exécuter le script
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialisation de l'application Firebase (ne s'exécute qu'une seule fois)
+            if (!firebase.apps.length) {
+                app = firebase.initializeApp(firebaseConfig);
+            } else {
+                app = firebase.app();
+            }
+            
+            // Récupération des instances Auth et Firestore
+            auth = firebase.auth();
+            db = firebase.firestore();
+
+            // Références aux éléments DOM
+            const registerForm = document.getElementById('registerForm');
+            const firstNameInput = document.getElementById('firstName');
+            const lastNameInput = document.getElementById('lastName');
+            const usernameInput = document.getElementById('username');
+            const emailInput = document.getElementById('email');
+            const phoneInput = document.getElementById('phone');
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirmPassword');
+            const messageBox = document.getElementById('messageBox');
+            const messageTitle = document.getElementById('messageTitle');
+            const messageContent = document.getElementById('messageContent');
+            const closeMessageBoxBtn = document.getElementById('closeMessageBox');
+
+            /**
+             * Affiche une boîte de message modale à l'utilisateur.
+             * S'assure que les éléments existent avant de tenter de les manipuler.
+             * Inclut un fallback (alert) si la modale ne peut pas s'afficher.
+             * @param {string} title - Le titre du message.
+             * @param {string} content - Le contenu du message.
+             */
+            function showMessage(title, content) {
+                if (messageTitle && messageContent && messageBox) {
+                    messageTitle.textContent = title;
+                    messageContent.textContent = content;
+                    messageBox.classList.remove('hidden');
+                } else {
+                    console.error("Erreur: Impossible d'afficher la modale, éléments manquants ou non initialisés.");
+                    alert(title + "\n\n" + content); // Fallback to alert
+                }
+            }
+
+            // Gestionnaire d'événement pour fermer la modale
+            if (closeMessageBoxBtn) {
+                closeMessageBoxBtn.addEventListener('click', () => {
+                    if (messageBox) messageBox.classList.add('hidden');
+                });
+            }
+
+            // Ajout du gestionnaire d'événement au formulaire
+            if (registerForm) {
+                registerForm.addEventListener('submit', async function(event) {
+                    event.preventDefault(); // Empêche le rechargement par défaut de la page
+
+                    // Récupération et nettoyage des valeurs des champs
+                    const firstName = firstNameInput.value.trim();
+                    const lastName = lastNameInput.value.trim();
+                    const username = usernameInput.value.trim();
+                    const email = emailInput.value.trim();
+                    const phone = phoneInput.value.trim();
+                    const password = passwordInput.value;
+                    const confirmPassword = confirmPasswordInput.value;
+
+                    // --- Validation côté client ---
+                    if (!firstName || !lastName || !username || !password || !confirmPassword) {
+                        showMessage("Erreur de Validation", "Veuillez remplir tous les champs obligatoires.");
+                        return;
+                    }
+                    if (!email) {
+                        showMessage("Erreur de Validation", "Une adresse e-mail est requise pour l'inscription.");
+                        return;
+                    }
+                    if (password !== confirmPassword) {
+                        showMessage("Erreur de Mot de Passe", "Les mots de passe ne correspondent pas.");
+                        return;
+                    }
+                    if (password.length < 6) { 
+                        showMessage("Mot de Passe Faible", "Le mot de passe doit contenir au moins 6 caractères.");
+                        return;
+                    }
+                    
+                    showMessage("Progression", "Validation réussie. Tentative de création du compte...");
+
+                    try {
+                        // 1. Création de l'utilisateur avec Firebase Authentication
+                        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                        const user = userCredential.user;
+
+                        showMessage("Progression", "Compte Firebase Auth créé avec succès. Enregistrement des détails dans Firestore...");
+
+                        // 2. Stockage des données utilisateur supplémentaires dans Firestore
+                        await db.collection("users").doc(user.uid).set({
+                            userId: user.uid, 
+                            firstName: firstName,
+                            lastName: lastName,
+                            username: username,
+                            email: email,
+                            phone: phone || null,
+                            role: 'user', 
+                            createdAt: new Date().toISOString(), 
+                            messages: [] 
+                        });
+
+                        showMessage("Progression", "Détails utilisateur enregistrés dans Firestore. Redirection...");
+
+                        // 3. Stockage des informations de base de l'utilisateur dans localStorage
+                        localStorage.setItem('iwUserAccount', JSON.stringify({
+                            userId: user.uid,
+                            username: username,
+                            email: email,
+                            phone: phone || null,
+                            role: 'user' 
+                        }));
+
+                        // Message final de succès et redirection
+                        showMessage("Inscription Réussie !", `Bienvenue, ${username} ! Vous pouvez maintenant vous connecter.`);
+                        setTimeout(() => {
+                            window.location.href = 'login.html'; // Redirige vers la page de connexion
+                        }, 1500);
+
+                    } catch (error) {
+                        // Gestion des erreurs Firebase Auth et Firestore
+                        console.error("Erreur lors de l'inscription Firebase:", error);
+                        let errorMessage = "Une erreur inattendue est survenue lors de l'inscription.";
+
+                        switch (error.code) {
+                            case 'auth/email-already-in-use':
+                                errorMessage = "Cette adresse e-mail est déjà utilisée. Veuillez vous connecter ou utiliser un autre email.";
+                                break;
+                            case 'auth/invalid-email':
+                                errorMessage = "L'adresse e-mail n'est pas valide.";
+                                break;
+                            case 'auth/weak-password':
+                                errorMessage = "Le mot de passe est trop faible. Il doit contenir au moins 6 caractères.";
+                                break;
+                            case 'auth/operation-not-allowed':
+                                errorMessage = "L'inscription par email/mot de passe n'est pas activée. Veuillez contacter l'administrateur du projet Firebase.";
+                                break;
+                            case 'auth/network-request-failed':
+                                errorMessage = "Erreur réseau. Vérifiez votre connexion internet.";
+                                break;
+                            // Erreurs Firestore (can be more generic if Firestore is not accessible)
+                            case 'unavailable': 
+                            case 'internal': 
+                                errorMessage = "Problème de connexion aux services Firebase. Veuillez vérifier votre connexion internet ou la configuration Firebase de votre projet.";
+                                break;
+                            default:
+                                errorMessage = `Erreur: ${error.message} (Code: ${error.code || 'Inconnu'})`;
+                                break;
+                        }
+                        showMessage("Erreur d'Inscription", errorMessage);
+                    }
+                });
+            } else {
+                console.error("Erreur: L'élément 'registerForm' n'a pas été trouvé. Le script ne peut pas s'attacher au formulaire.");
+                showMessage("Erreur Critique", "Le formulaire d'inscription est introuvable sur la page.");
+            }
+        }); // End of DOMContentLoaded
+    </script>
+</body>
+</html>

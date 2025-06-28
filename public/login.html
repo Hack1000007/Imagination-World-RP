@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - Imagination World</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        .container {
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 1.5rem;
+        }
+        @media (min-width: 640px) {
+            .container {
+                max-width: 480px;
+            }
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-content {
+            animation: fadeInScale 0.3s ease-out forwards;
+            background-color: #fff;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 90%;
+            width: 100%;
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="container bg-white shadow-xl rounded-lg p-6 md:p-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-6">Connexion</h1>
+        <p class="text-center text-gray-600 mb-8">Connectez-vous pour accéder au créateur de personnages.</p>
+
+        <form id="loginForm" class="space-y-6">
+            <div>
+                <label for="loginEmail" class="block text-sm font-medium text-gray-700 mb-1">Email :</label>
+                <input type="email" id="loginEmail" name="loginEmail" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Votre email" required>
+            </div>
+            <div>
+                <label for="loginPassword" class="block text-sm font-medium text-gray-700 mb-1">Mot de passe :</label>
+                <input type="password" id="loginPassword" name="loginPassword" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Votre mot de passe" required>
+            </div>
+            
+            <button type="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-semibold text-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out">
+                Se Connecter
+            </button>
+        </form>
+
+        <p class="text-center text-gray-600 text-sm mt-6">
+            Pas encore de compte ? <a href="register.html" class="text-blue-600 hover:underline font-medium">Inscrivez-vous ici</a>
+        </p>
+
+        <!-- Modale de Message (pour notifications d'action) -->
+        <div id="messageBox" class="fixed inset-0 modal-overlay flex items-center justify-center hidden z-50">
+            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center modal-content">
+                <h3 id="messageTitle" class="text-xl font-bold mb-4 text-gray-800"></h3>
+                <p id="messageContent" class="text-gray-700 mb-6 text-sm"></p>
+                <button id="closeMessageBox" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chargement des SDK Firebase via CDN (version 8.10.1 - très compatible) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // Configuration Firebase Client
+        const firebaseConfig = {
+            apiKey: "AIzaSyDux4S_lY_8mygOBeimpGXl5xeNI0HGeAA",
+            authDomain: "imagination-f2e5c.firebaseapp.com",
+            projectId: "imagination-f2e5c",
+            storageBucket: "imagination-f2e5c.firebasestorage.app",
+            messagingSenderId: "182206843362",
+            appId: "1:182206843362:web:eda2dda1ef85a624a811bb",
+            measurementId: "G-NK53DJQWH6"
+        };
+
+        let app;
+        let auth;
+        let db; // Firestore is not directly used in login, but useful to keep consistent
+
+        // Ensure the DOM is fully loaded before executing the script
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the Firebase app (runs only once)
+            if (!firebase.apps.length) {
+                app = firebase.initializeApp(firebaseConfig);
+            } else {
+                app = firebase.app();
+            }
+            
+            // Get Auth instance
+            auth = firebase.auth();
+            // Get Firestore instance (even if not directly used, useful for consistency)
+            db = firebase.firestore(); 
+
+            const loginForm = document.getElementById('loginForm');
+            const loginEmailInput = document.getElementById('loginEmail'); 
+            const loginPasswordInput = document.getElementById('loginPassword');
+            const messageBox = document.getElementById('messageBox');
+            const messageTitle = document.getElementById('messageTitle');
+            const messageContent = document.getElementById('messageContent');
+            const closeMessageBoxBtn = document.getElementById('closeMessageBox');
+
+            // Function to show a message modal
+            function showMessage(title, content) {
+                if (messageTitle) messageTitle.textContent = title;
+                if (messageContent) messageContent.textContent = content;
+                if (messageBox) messageBox.classList.remove('hidden');
+                else console.error("Error: Could not display modal, missing or uninitialized elements.");
+            }
+
+            // Close message modal
+            if (closeMessageBoxBtn) {
+                closeMessageBoxBtn.addEventListener('click', () => {
+                    if (messageBox) messageBox.classList.add('hidden');
+                });
+            }
+
+            if (loginForm) {
+                loginForm.addEventListener('submit', async function(event) {
+                    event.preventDefault();
+
+                    const email = loginEmailInput?.value.trim();
+                    const password = loginPasswordInput?.value;
+
+                    // Client-side validation
+                    if (!email || !password) {
+                        showMessage("Erreur de Connexion", "Veuillez remplir tous les champs.");
+                        return;
+                    }
+
+                    try {
+                        // Sign in user with Firebase Authentication
+                        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                        const user = userCredential.user;
+
+                        // Fetch additional user data from your /api/users endpoint
+                        const response = await fetch(`/api/users?userId=${user.uid}`);
+                        let userData = {};
+                        let userRole = 'user'; // Default role if not found or if API fails
+                        if (response.ok) {
+                            userData = await response.json();
+                            userRole = userData.role || 'user'; // Get role from Firestore, default 'user'
+                        } else {
+                            console.warn("Could not fetch additional user data from backend, using Firebase Auth defaults.");
+                            // Fallback to basic Firebase user info if backend data not found
+                            userData = {
+                                userId: user.uid,
+                                username: user.email.split('@')[0], 
+                                email: user.email,
+                                phone: null, 
+                            };
+                        }
+
+                        // Store the authenticated user's info (including role) in localStorage
+                        localStorage.setItem('iwUserAccount', JSON.stringify({
+                            userId: user.uid,
+                            username: userData.username || user.email.split('@')[0],
+                            email: user.email,
+                            phone: userData.phone || null,
+                            role: userRole 
+                        }));
+
+                        showMessage("Connexion Réussie !", `Bienvenue, ${userData.username || user.email} ! Redirection...`);
+
+                        setTimeout(() => {
+                            if (userRole === 'admin') {
+                                window.location.href = 'admin.html'; // Redirect to admin dashboard
+                            } else {
+                                window.location.href = 'index.html'; // Redirect to character creator
+                            }
+                        }, 1000);
+
+                    } catch (error) {
+                        console.error("Erreur de connexion Firebase:", error);
+                        let errorMessage = "Une erreur est survenue lors de la connexion.";
+                        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                            errorMessage = "Email ou mot de passe incorrect.";
+                        } else if (error.code === 'auth/invalid-email') {
+                            errorMessage = "Adresse email invalide.";
+                        } else if (error.code === 'auth/too-many-requests') {
+                            errorMessage = "Trop de tentatives de connexion. Veuillez réessayer plus tard.";
+                        } else if (error.code === 'auth/network-request-failed') {
+                            errorMessage = "Erreur réseau. Vérifiez votre connexion internet.";
+                        }
+                        showMessage("Erreur de Connexion", errorMessage);
+                    }
+                });
+            }
+        }); // End of DOMContentLoaded
+    </script>
+</body>
+</html>
+

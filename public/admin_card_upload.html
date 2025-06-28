@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Télécharger Carte Joueur - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        .container {
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 1.5rem;
+        }
+        @media (min-width: 640px) {
+            .container {
+                max-width: 600px;
+            }
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+            position: fixed; /* Added fixed positioning */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-content {
+            animation: fadeInScale 0.3s ease-out forwards;
+            background-color: #fff; /* Added white background */
+            padding: 1.5rem; /* Added padding */
+            border-radius: 0.5rem; /* Added border-radius */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Added shadow */
+            max-width: 90%; /* Responsive width */
+            width: 100%; /* Full width within max-width */
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="container bg-white shadow-xl rounded-lg p-6 md:p-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-6">Télécharger la Carte du Joueur</h1>
+        <p class="text-center text-gray-600 mb-8">Téléchargez la carte de joueur pour le personnage accepté.</p>
+
+        <p id="loadingMessage" class="text-center text-blue-600 font-semibold mb-4">Chargement des détails de la soumission...</p>
+        <p id="errorMessage" class="text-center text-red-600 font-semibold mb-4 hidden">Une erreur est survenue.</p>
+
+        <div id="characterInfoCard" class="bg-gray-50 p-5 rounded-md shadow-sm mb-6 hidden">
+            <h2 class="text-xl font-semibold text-gray-700 mb-3">Personnage accepté : <span id="characterNameDisplay" class="text-blue-700"></span></h2>
+            <p class="text-sm text-gray-600 mb-4">ID Joueur : <span id="userIdDisplay" class="font-mono text-purple-700"></span></p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm font-medium text-gray-700">Nom Avatar:</p>
+                    <p id="infoAvatarName" class="text-gray-900 font-semibold"></p>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-700">Races:</p>
+                    <p id="infoRaces" class="text-gray-900"></p>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-700">Classe:</p>
+                    <p id="infoClass" class="text-gray-900"></p>
+                </div>
+                <!-- Add more character details here if needed -->
+            </div>
+        </div>
+
+        <div id="uploadSection" class="bg-gray-50 p-5 rounded-md shadow-sm">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Télécharger l'image de la carte</h2>
+            <div>
+                <label for="playerCardImage" class="block text-sm font-medium text-gray-700 mb-1">Fichier image de la carte :</label>
+                <input type="file" id="playerCardImage" name="playerCardImage" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" required>
+                <p class="text-xs text-gray-500 mt-1">Formats acceptés : JPG, PNG, GIF</p>
+                <div id="cardImagePreviewContainer" class="mt-4 hidden justify-center items-center p-4 bg-gray-100 rounded-md">
+                    <img id="cardImagePreview" src="#" alt="Aperçu de la carte du joueur" class="max-w-full h-auto rounded-md max-h-64 object-contain">
+                </div>
+            </div>
+            <button id="sendCardButton" class="w-full bg-green-600 text-white py-3 px-4 rounded-md font-semibold text-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-150 ease-in-out mt-6">
+                Envoyer la Carte au Joueur
+            </button>
+        </div>
+
+        <!-- Confirmation Section -->
+        <div id="confirmationSection" class="hidden mt-8 p-6 rounded-md bg-green-100 border border-green-300 text-center">
+            <h2 class="text-2xl font-bold text-green-800 mb-3">Carte envoyée avec succès !</h2>
+            <p class="text-gray-700 mb-4">Le statut de la soumission a été mis à jour.</p>
+            <a href="admin.html" class="inline-block bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">
+                Retour au Tableau de Bord
+            </a>
+        </div>
+    </div>
+
+    <!-- Modale de Message -->
+    <div id="messageBox" class="fixed inset-0 modal-overlay flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center modal-content">
+            <h3 id="messageTitle" class="text-xl font-bold mb-4 text-gray-800"></h3>
+            <p id="messageContent" class="text-gray-700 mb-6 text-sm"></p>
+            <button id="closeMessageBox" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Chargement des SDK Firebase via CDN (version 8.10.1 - très compatible) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // Firebase Client Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDux4S_lY_8mygOBeimpGXl5xeNI0HGeAA",
+            authDomain: "imagination-f2e5c.firebaseapp.com",
+            projectId: "imagination-f2e5c",
+            storageBucket: "imagination-f2e5c.firebasestorage.app",
+            messagingSenderId: "182206843362",
+            appId: "1:182206843362:web:eda2dda1ef85a624a811bb",
+            measurementId: "G-NK53DJQWH6"
+        };
+
+        let app;
+        let auth;
+        let db;
+
+        let currentSubmission = null; // Stores the submission object loaded from the API
+
+        const characterNameDisplay = document.getElementById('characterNameDisplay');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const characterInfoCard = document.getElementById('characterInfoCard');
+        const infoAvatarName = document.getElementById('infoAvatarName');
+        const infoRaces = document.getElementById('infoRaces');
+        const infoClass = document.getElementById('infoClass');
+        const playerCardImageInput = document.getElementById('playerCardImage');
+        const cardImagePreview = document.getElementById('cardImagePreview');
+        const cardImagePreviewContainer = document.getElementById('cardImagePreviewContainer');
+        const sendCardButton = document.getElementById('sendCardButton');
+        const confirmationSection = document.getElementById('confirmationSection');
+        const errorMessageDiv = document.getElementById('errorMessage');
+
+        const messageBox = document.getElementById('messageBox');
+        const messageTitle = document.getElementById('messageTitle');
+        const messageContent = document.getElementById('messageContent');
+        const closeMessageBoxBtn = document.getElementById('closeMessageBox');
+
+        // Function to show a message modal
+        function showMessage(title, content) {
+            if (messageTitle) messageTitle.textContent = title;
+            if (messageContent) messageContent.textContent = content;
+            if (messageBox) messageBox.classList.remove('hidden');
+            else console.error("Error: Could not display modal, missing or uninitialized elements.");
+        }
+
+        // Close message modal
+        if (closeMessageBoxBtn) {
+            closeMessageBoxBtn.addEventListener('click', () => {
+                if (messageBox) messageBox.classList.add('hidden');
+            });
+        }
+
+        // Utility to get URL parameters
+        function getParamsFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return {
+                submissionId: urlParams.get('submissionId'),
+                userId: urlParams.get('userId')
+            };
+        }
+
+        // Function to check admin role and redirect if not admin
+        async function checkAdminRoleAndLoadData() {
+            // Initialize Firebase
+            if (!firebase.apps.length) {
+                app = firebase.initializeApp(firebaseConfig);
+            } else {
+                app = firebase.app();
+            }
+            auth = firebase.auth();
+            db = firebase.firestore();
+
+            const user = auth.currentUser;
+            if (!user) {
+                console.warn("User not authenticated. Redirecting to login.");
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                const userDocRef = db.collection('users').doc(user.uid);
+                const docSnap = await userDocRef.get();
+
+                if (docSnap.exists) {
+                    const userData = docSnap.data();
+                    if (userData.role !== 'admin') {
+                        console.warn("User is not an admin. Redirecting to index.");
+                        window.location.href = 'index.html';
+                    } else {
+                        // User is admin, proceed to load submission data
+                        console.log("Admin authenticated for admin_card_upload.html.");
+                        loadSubmissionData();
+                    }
+                } else {
+                    console.warn("User data not found in Firestore. Redirecting to login.");
+                    window.location.href = 'login.html';
+                }
+            } catch (error) {
+                console.error("Error checking admin role:", error);
+                showMessage("Erreur d'authentification", "Impossible de vérifier votre statut administrateur. Veuillez réessayer.");
+                setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+            }
+        }
+
+        async function loadSubmissionData() {
+            const { submissionId, userId } = getParamsFromUrl();
+            if (loadingMessage) loadingMessage.classList.remove('hidden');
+
+            if (!submissionId || !userId) {
+                if (loadingMessage) loadingMessage.classList.add('hidden');
+                if (errorMessageDiv) {
+                    errorMessageDiv.classList.remove('hidden');
+                    errorMessageDiv.textContent = "Erreur : IDs de soumission ou de joueur manquants dans l'URL. Retournez au tableau de bord.";
+                }
+                if (sendCardButton) sendCardButton.disabled = true;
+                if (playerCardImageInput) playerCardImageInput.required = false;
+                return;
+            }
+
+            try {
+                // Get the admin user's ID token for authentication with backend APIs
+                const user = auth.currentUser;
+                const idToken = user ? await user.getIdToken() : null;
+                if (!idToken) {
+                    showMessage("Erreur d'authentification", "Veuillez vous reconnecter.");
+                    setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+                    return;
+                }
+
+                // Fetch ALL submissions and find the specific one.
+                const response = await fetch(`/api/submissions`, {
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+                if (!response.ok) throw new Error(`Failed to fetch submissions: ${response.status}`);
+                const submissions = await response.json();
+                
+                // Find the specific submission based on submissionId AND userId
+                currentSubmission = submissions.find(s => 
+                    s.id === submissionId && s.userId === userId
+                );
+
+                if (currentSubmission && currentSubmission.status === 'accepted') {
+                    if (loadingMessage) loadingMessage.classList.add('hidden');
+                    if (characterInfoCard) characterInfoCard.classList.remove('hidden');
+                    if (playerCardImageInput) playerCardImageInput.required = true;
+
+                    if (characterNameDisplay) characterNameDisplay.textContent = currentSubmission.characterData.nomAvatar;
+                    if (userIdDisplay) userIdDisplay.textContent = currentSubmission.userId;
+                    if (infoAvatarName) infoAvatarName.textContent = currentSubmission.characterData.nomAvatar;
+                    if (infoRaces && currentSubmission.characterData.races) infoRaces.textContent = currentSubmission.characterData.races.join(', ');
+                    if (infoClass) infoClass.textContent = currentSubmission.characterData.classe;
+
+                } else {
+                    if (loadingMessage) loadingMessage.classList.add('hidden');
+                    if (errorMessageDiv) {
+                        errorMessageDiv.classList.remove('hidden');
+                        errorMessageDiv.textContent = "Erreur : Soumission introuvable, déjà traitée, ou non acceptée. Retournez au tableau de bord.";
+                    }
+                    if (sendCardButton) sendCardButton.disabled = true;
+                    if (playerCardImageInput) playerCardImageInput.required = false;
+                }
+            } catch (error) {
+                console.error("Erreur lors du chargement de la soumission:", error);
+                if (loadingMessage) loadingMessage.classList.add('hidden');
+                if (errorMessageDiv) {
+                    errorMessageDiv.classList.remove('hidden');
+                    errorMessageDiv.textContent = `Erreur réseau lors du chargement des détails de la soumission: ${error.message}.`;
+                }
+                if (sendCardButton) sendCardButton.disabled = true;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', checkAdminRoleAndLoadData);
+
+
+        // Image preview for the card
+        if (playerCardImageInput) {
+            playerCardImageInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        if (cardImagePreview) cardImagePreview.src = e.target.result;
+                        if (cardImagePreviewContainer) {
+                            cardImagePreviewContainer.classList.remove('hidden');
+                            cardImagePreviewContainer.classList.add('flex');
+                        }
+                    };
+                    reader.readAsDataURL(file); 
+                } else {
+                    if (cardImagePreview) cardImagePreview.src = "#";
+                    if (cardImagePreviewContainer) {
+                        cardImagePreviewContainer.classList.add('hidden');
+                        cardImagePreviewContainer.classList.remove('flex');
+                    }
+                }
+            });
+        }
+
+        // Handle sending the card
+        if (sendCardButton) {
+            sendCardButton.addEventListener('click', async () => {
+                if (!currentSubmission) {
+                    showMessage("Erreur", "Aucune soumission sélectionnée pour l'envoi de la carte.");
+                    return;
+                }
+
+                if (!playerCardImageInput?.files || playerCardImageInput.files.length === 0) {
+                    showMessage("Attention", "Veuillez télécharger une image pour la carte du joueur.");
+                    return;
+                }
+
+                const cardImageData = cardImagePreview?.src; // Get the base64 string from the preview
+
+                try {
+                    const user = auth.currentUser;
+                    const idToken = user ? await user.getIdToken() : null;
+                    if (!idToken) {
+                        showMessage("Erreur d'authentification", "Veuillez vous reconnecter.");
+                        setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+                        return;
+                    }
+
+                    // Send update to the API to set submission status to 'completed' and add player card image
+                    const response = await fetch('/api/submissions', { 
+                        method: 'PUT',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${idToken}` 
+                        },
+                        body: JSON.stringify({ 
+                            submissionId: currentSubmission.id, 
+                            status: 'completed', 
+                            playerCardImage: cardImageData 
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        if (confirmationSection) confirmationSection.classList.remove('hidden');
+                        if (sendCardButton) sendCardButton.disabled = true; 
+                        if (playerCardImageInput) playerCardImageInput.disabled = true;
+                        showMessage("Succès", `Carte du joueur envoyée pour ${currentSubmission.characterData.nomAvatar}.`);
+                        console.log(`Carte du joueur envoyée pour ${currentSubmission.characterData.nomAvatar} (ID Joueur: ${currentSubmission.userId}).`);
+                    } else {
+                        showMessage("Erreur", result.message || "Erreur lors de la mise à jour de la soumission.");
+                    }
+                } catch (error) {
+                    console.error("Erreur réseau lors de l'envoi de la carte:", error);
+                    showMessage("Erreur Réseau", "Impossible de communiquer avec le serveur.");
+                }
+            });
+        }
+    </script>
+</body>
+</html>

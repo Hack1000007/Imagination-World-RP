@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmation WhatsApp Admin - Imagination World</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        .container {
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 2rem;
+        }
+        @media (min-width: 640px) {
+            .container {
+                max-width: 600px;
+            }
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+            position: fixed; /* Added fixed positioning */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-content {
+            animation: fadeInScale 0.3s ease-out forwards;
+            background-color: #fff; /* Added white background */
+            padding: 1.5rem; /* Added padding */
+            border-radius: 0.5rem; /* Added border-radius */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Added shadow */
+            max-width: 90%; /* Responsive width */
+            width: 100%; /* Full width within max-width */
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="container bg-white shadow-xl rounded-lg p-6 md:p-8 text-center">
+        <div class="mb-6">
+            <svg class="mx-auto h-20 w-20 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+        </div>
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-4">Action Confirmée !</h1>
+        <p class="text-lg text-gray-700 mb-6">L'alerte d'adhésion WhatsApp a été marquée comme traitée.</p>
+        <p class="text-gray-600 mb-8">Vous pouvez maintenant retourner au tableau de bord.</p>
+        
+        <a href="admin.html" class="inline-block bg-blue-600 text-white py-2 px-4 rounded-md font-semibold hover:bg-blue-700 transition duration-150 ease-in-out">
+            Retour au Tableau de Bord
+        </a>
+    </div>
+
+    <!-- Modale de Message -->
+    <div id="messageBox" class="fixed inset-0 modal-overlay flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center modal-content">
+            <h3 id="messageTitle" class="text-xl font-bold mb-4 text-gray-800"></h3>
+            <p id="messageContent" class="text-gray-700 mb-6 text-sm"></p>
+            <button id="closeMessageBox" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Chargement des SDK Firebase via CDN (version 8.10.1 - très compatible) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // Firebase Client Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDux4S_lY_8mygOBeimpGXl5xeNI0HGeAA",
+            authDomain: "imagination-f2e5c.firebaseapp.com",
+            projectId: "imagination-f2e5c",
+            storageBucket: "imagination-f2e5c.firebasestorage.app",
+            messagingSenderId: "182206843362",
+            appId: "1:182206843362:web:eda2dda1ef85a624a811bb",
+            measurementId: "G-NK53DJQWH6"
+        };
+
+        let app;
+        let auth;
+        let db;
+
+        const messageBox = document.getElementById('messageBox');
+        const messageTitle = document.getElementById('messageTitle');
+        const messageContent = document.getElementById('messageContent');
+        const closeMessageBoxBtn = document.getElementById('closeMessageBox');
+
+        // Function to show a message modal
+        function showMessage(title, content) {
+            if (messageTitle) messageTitle.textContent = title;
+            if (messageContent) messageContent.textContent = content;
+            if (messageBox) messageBox.classList.remove('hidden');
+            else console.error("Error: Could not display modal, missing or uninitialized elements.");
+        }
+
+        // Close message modal
+        if (closeMessageBoxBtn) {
+            closeMessageBoxBtn.addEventListener('click', () => {
+                if (messageBox) messageBox.classList.add('hidden');
+            });
+        }
+
+        // Get URL parameters
+        function getParamsFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return {
+                submissionId: urlParams.get('submissionId'),
+                userId: urlParams.get('userId'),
+                alertId: urlParams.get('alertId') // The ID of the alert to mark as read/delete
+            };
+        }
+
+        // Function to check admin role and load data
+        async function checkAdminRoleAndProcessAlert() {
+            // Initialize Firebase
+            if (!firebase.apps.length) {
+                app = firebase.initializeApp(firebaseConfig);
+            } else {
+                app = firebase.app();
+            }
+            auth = firebase.auth();
+            db = firebase.firestore();
+
+            const user = auth.currentUser;
+            if (!user) {
+                console.warn("User not authenticated. Redirecting to login.");
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                const userDocRef = db.collection('users').doc(user.uid);
+                const docSnap = await userDocRef.get();
+
+                if (docSnap.exists) {
+                    const userData = docSnap.data();
+                    if (userData.role !== 'admin') {
+                        console.warn("User is not an admin. Redirecting to index.");
+                        window.location.href = 'index.html';
+                    } else {
+                        // User is admin, proceed to process the alert
+                        console.log("Admin authenticated for whatsapp_admin_confirm.html.");
+                        processAlert();
+                    }
+                } else {
+                    console.warn("User data not found in Firestore. Redirecting to login.");
+                    window.location.href = 'login.html';
+                }
+            } catch (error) {
+                console.error("Error checking admin role:", error);
+                showMessage("Erreur d'authentification", "Impossible de vérifier votre statut administrateur. Veuillez réessayer.");
+                setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+            }
+        }
+
+        async function processAlert() {
+            const { submissionId, userId, alertId } = getParamsFromUrl();
+
+            if (!alertId) {
+                showMessage("Erreur", "ID de l'alerte manquant. Retour au tableau de bord.");
+                setTimeout(() => {
+                    window.location.href = 'admin.html';
+                }, 1500);
+                return;
+            }
+
+            try {
+                const user = auth.currentUser;
+                const idToken = user ? await user.getIdToken() : null;
+                if (!idToken) {
+                    showMessage("Erreur d'authentification", "Veuillez vous reconnecter.");
+                    setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+                    return;
+                }
+
+                // Call the API to delete the alert (mark as read)
+                const response = await fetch(`/api/alerts?id=${alertId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+
+                if (!response.ok) {
+                    const errorResult = await response.json();
+                    throw new Error(errorResult.message || `Erreur HTTP: ${response.status}`);
+                }
+                
+                console.log(`Alerte ${alertId} marquée comme traitée.`);
+                // The success message is already visible in the HTML. No need to show another modal here.
+
+            } catch (error) {
+                console.error("Erreur lors du traitement de l'alerte:", error);
+                showMessage("Erreur", `Impossible de traiter l'alerte: ${error.message}.`);
+                // Optionally redirect even on error, or provide a retry button
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', checkAdminRoleAndProcessAlert);
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Créateur de Personnages - Imagination World</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Placeholder background image - replace with your actual image */
+            background-image: url('https://placehold.co/1920x1080/4f46e5/ffffff/&text=Imagination+World+Background');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-color: rgba(0, 0, 0, 0.6); /* Overlay for better text readability */
+            color: #333; /* Default text color */
+        }
+        .container {
+            max-width: 90%; /* Responsive width for smaller screens */
+            margin-left: auto;
+            margin-right: auto;
+            padding: 1rem;
+            background-color: rgba(255, 255, 255, 0.95); /* Slightly transparent white background */
+            border-radius: 0.75rem; /* rounded-lg */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+        }
+        @media (min-width: 768px) {
+            .container {
+                max-width: 768px; /* Fixed width for medium and larger screens */
+            }
+        }
+        /* Hide spin buttons for number inputs */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        .scrollable-checkboxes {
+            max-height: 200px; /* Max height for scrollable sections */
+            overflow-y: auto; /* Enable vertical scrolling */
+            border: 1px solid #e5e7eb; /* Border color */
+            border-radius: 0.5rem; /* Rounded corners */
+            padding: 0.5rem;
+            background-color: #ffffff;
+        }
+        .message-success-player {
+            background-color: #d1fae5; /* Light green background */
+            color: #065f46; /* Dark green text */
+            border-left: 4px solid #34d399; /* Green left border */
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7); /* Dark semi-transparent overlay for modals */
+        }
+        .modal-content {
+            animation: fadeInScale 0.3s ease-out forwards; /* Simple animation for modal appearance */
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="container">
+        <!-- Section d'état du joueur -->
+        <div id="playerStatus" class="hidden p-4 mb-4 rounded-md bg-blue-100 border border-blue-300 text-blue-800">
+            <p>Bonjour <span id="welcomeUsername" class="font-bold"></span> ! Votre ID de joueur est : <span id="displayPlayerId" class="font-bold"></span></p>
+            <p id="playerCardStatus" class="mt-2"></p>
+        </div>
+
+        <!-- Boutons d'aide et de notifications -->
+        <div class="flex justify-end gap-4 mb-4">
+            <!-- Icône Notifications -->
+            <a href="player_notifications.html" id="notificationBell" class="relative inline-flex items-center justify-center bg-purple-500 text-white p-3 rounded-full text-lg font-semibold hover:bg-purple-600 transition duration-150 ease-in-out shadow-md">
+                <i class="fas fa-bell"></i>
+                <span id="notificationBadge" class="absolute top-0 right-0 -mt-1 -mr-1 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full hidden">0</span>
+            </a>
+            <!-- Icône Aide -->
+            <a href="help.html" class="inline-flex items-center justify-center bg-blue-500 text-white p-3 rounded-full text-lg font-semibold hover:bg-blue-600 transition duration-150 ease-in-out shadow-md">
+                <i class="fas fa-question-circle"></i>
+            </a>
+            <!-- Bouton Paramètres -->
+            <a href="settings.html" id="settingsButton" class="inline-flex items-center justify-center bg-gray-500 text-white p-3 rounded-full text-lg font-semibold hover:bg-gray-600 transition duration-150 ease-in-out shadow-md">
+                <i class="fas fa-cog"></i>
+            </a>
+            <!-- Bouton Déconnexion -->
+            <a href="#" id="logoutButton" class="inline-flex items-center justify-center bg-red-500 text-white p-3 rounded-full text-lg font:semibold hover:bg-red-600 transition duration:150 ease-in-out shadow:md">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+        </div>
+
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-6">Créateur de Personnages</h1>
+        <p class="text-center text-gray-600 mb-8">Créez votre personnage pour Imagination World !</p>
+
+        <!-- Section pour gérer la carte existante / l'option d'écrasement -->
+        <div id="existingCharacterControls" class="hidden bg-yellow-50 p-6 rounded-md shadow-inner border border-yellow-200 mb-6 text-center">
+            <h2 class="text-xl font-bold text-yellow-800 mb-3">Vous avez déjà un personnage actif !</h2>
+            <p class="text-gray-700 mb-4">Votre ID de joueur (<span id="existingCharUserIdDisplay" class="font-bold text-purple-700"></span>) est déjà lié à un personnage: <span id="existingCharNameDisplay" class="font-bold text-blue-700"></span>.</p>
+            <div id="existingCharStatusDetails" class="text-sm text-gray-600 mt-2"></div>
+            <button id="overwriteCharacterButton" class="mt-6 bg-red-600 text-white py-2 px-4 rounded-md font-semibold hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-150 ease-in-out">
+                Créer un nouveau personnage (écrasera l'ancien)
+            </button>
+            <p class="text-sm text-gray-500 mt-2">Attention : Écraser votre personnage enverra une notification aux administrateurs.</p>
+        </div>
+
+
+        <form id="characterForm" class="space-y-6">
+
+            <!-- Section Informations de Base -->
+            <div class="bg-gray-50 p-5 rounded-md shadow-sm">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">1. Informations de Base</h2>
+                <div>
+                    <label for="userId" class="block text-sm font-medium text-gray-700 mb-1">Votre ID de Joueur (requis) :</label>
+                    <input type="text" id="userId" name="userId" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm bg-gray-200 cursor-not-allowed" placeholder="Votre ID de joueur" required readonly>
+                    <p class="text-xs text-gray-500 mt-1">Si vous n'avez pas de compte, veuillez <a href="register.html" class="text-blue-600 hover:underline">vous inscrire ici</a>.</p>
+                </div>
+                <div>
+                    <label for="avatarName" class="block text-sm font-medium text-gray-700 mb-1 mt-4">Nom de l'Avatar :</label>
+                    <input type="text" id="avatarName" name="avatarName" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Ex: Eldrin Cœurdefeu" required>
+                </div>
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 mt-4">Numéro de Téléphone du Roleplayer (avec indicatif pays) :</label>
+                    <input type="tel" id="phone" name="phone" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Ex: +33612345678" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1 mt-4">Sexe :</label>
+                    <div class="flex flex-wrap gap-4 mt-2">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="gender" value="Homme" class="form-radio h-4 w-4 text-blue-600" required>
+                            <span class="ml-2 text-gray-700">Homme</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="gender" value="Femme" class="form-radio h-4 w-4 text-blue-600" required>
+                            <span class="ml-2 text-gray-700">Femme</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="gender" value="Autre" class="form-radio h-4 w-4 text-blue-600" required>
+                            <span class="ml-2 text-gray-700">Autre</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Race -->
+            <div class="bg-gray-50 p-5 rounded-md shadow-sm">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">2. Race (Choisissez 1 ou 2)</h2>
+                <div id="raceSelection" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 scrollable-checkboxes">
+                    <!-- Les races seront insérées ici par JavaScript -->
+                </div>
+                <p id="raceError" class="text-red-500 text-sm mt-2 hidden">Veuillez choisir entre 1 et 2 races.</p>
+            </div>
+
+            <!-- Section Classe -->
+            <div class="bg-gray-50 p-5 rounded-md shadow-sm">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">3. Classe (Choisissez 1)</h2>
+                <div id="classSelection" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 scrollable-checkboxes">
+                    <!-- Les classes seront insérées ici par JavaScript -->
+                </div>
+                <p id="classError" class="text-red-500 text-sm mt-2 hidden">Veuillez choisir exactement 1 classe. (Note: Sorcière est uniquement pour les personnages féminins.)</p>
+            </div>
+
+            <!-- Section Attributs -->
+            <div class="bg-gray-50 p-5 rounded-md shadow-sm">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">4. Attributs (Choisissez exactement 3)</h2>
+                <div id="attributeSelection" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 scrollable-checkboxes">
+                    <!-- Les attributs seront insérés ici par JavaScript -->
+                </div>
+                <p id="attributeError" class="text-red-500 text-sm mt-2 hidden">Veuillez choisir exactement 3 attributs.</p>
+            </div>
+
+            <!-- Section Compétences Uniques -->
+            <div class="bg-gray-50 p-5 rounded-md shadow-sm">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">5. Compétences Uniques (3 requises)</h2>
+                <div id="uniqueSkillsContainer" class="space-y-4">
+                    <!-- Les compétences uniques seront générées ici par JavaScript -->
+                </div>
+            </div>
+
+            <!-- Section Répartition des Points -->
+            <div class="bg-gray-50 p-5 rounded-md shadow-sm">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">6. Répartition des Points de Statistiques</h2>
+                <p class="text-sm text-gray-600 mb-4">Vous avez <span id="remainingPoints" class="font-bold text-blue-600">5000</span> points à répartir.</p>
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="manaStamina" class="block text-sm font-medium text-gray-700 mb-1">Points de Mana / Stamina :</label>
+                        <input type="number" id="manaStamina" name="manaStamina" min="0" value="0" class="stat-input mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label for="health" class="block text-sm font-medium text-gray-700 mb-1">Points de Vie :</label>
+                        <input type="number" id="health" name="health" min="0" value="0" class="stat-input mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label for="agility" class="block text-sm font-medium text-gray-700 mb-1">Points d'Agilité :</label>
+                        <input type="number" id="agility" name="agility" min="0" value="0" class="stat-input mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label for="strength" class="block text-sm font-medium text-gray-700 mb-1">Points de Force :</label>
+                        <input type="number" id="strength" name="strength" min="0" value="0" class="stat-input mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+                    </div>
+                </div>
+                <p id="pointsError" class="text-red-500 text-sm mt-2 hidden">Vous devez répartir exactement 5000 points.</p>
+            </div>
+
+            <!-- Section Image du Personnage -->
+            <div class="bg-gray-50 p-5 rounded-md shadow-sm">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">7. Image du Personnage</h2>
+                <div>
+                    <label for="characterImage" class="block text-sm font-medium text-gray-700 mb-1">Télécharger une image :</label>
+                    <input type="file" id="characterImage" name="characterImage" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    <p class="text-xs text-gray-500 mt-1">Formats acceptés : JPG, PNG, GIF</p>
+                    <div id="imagePreviewContainer" class="mt-4 hidden justify-center items-center p-4 bg-gray-100 rounded-md">
+                        <img id="imagePreview" src="#" alt="Aperçu de l'image" class="max-w-full h-auto rounded-md max-h-64 object-contain">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bouton Créer Personnage -->
+            <div class="mt-8">
+                <button type="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-semibold text-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out">
+                    Créer Personnage
+                </button>
+            </div>
+        </form>
+
+        <!-- Modale de Résultat/Erreur -->
+        <div id="messageBox" class="fixed inset-0 modal-overlay flex items-center justify-center hidden z-50">
+            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center modal-content">
+                <h3 id="messageTitle" class="text-xl font-bold mb-4 text-gray-800"></h3>
+                <p id="messageContent" class="text-gray-700 mb-6 text-sm"></p>
+                <button id="closeMessageBox" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">Fermer</button>
+            </div>
+        </div>
+
+        <!-- Zone d'affichage du personnage créé (pour démo) - Peut être caché par défaut en production -->
+        <div id="characterOutput" class="hidden mt-10 bg-blue-50 p-6 rounded-md shadow-inner">
+            <h2 class="text-2xl font-bold text-blue-800 mb-4">Personnage Créé (JSON pour Admin) :</h2>
+            <pre id="characterJson" class="bg-blue-100 p-4 rounded-md text-sm text-blue-900 overflow-x-auto"></pre>
+        </div>
+
+        <!-- Section de confirmation / message de succès pour le joueur -->
+        <div id="playerSuccessConfirmation" class="hidden mt-10 p-6 rounded-md shadow-inner message-success-player">
+            <h3 class="text-2xl font-bold mb-4">Succès ! Votre intégration a été acceptée !</h3>
+            <p class="text-lg mb-4">Félicitations ! Votre carte de personnage a été approuvée.</p>
+            <p class="text-gray-700 mb-6">Rejoignez notre groupe WhatsApp pour l'intégration complète dans Imagination World :</p>
+            <a id="whatsAppGroupLinkPlayer" href="https://chat.whatsapp.com/DKilTON2xUW1IEXDndaxx?mode=r_t" target="_blank" class="inline-block bg-green-700 text-white py-2 px-4 rounded-md hover:bg-green-800 transition duration-150 ease-in-out">Rejoindre le Groupe WhatsApp</a>
+            <p class="text-sm text-gray-600 mt-4"> (Ceci est une simulation de notification d'envoi. La carte a été chargée par l'admin.)</p>
+            <img id="finalPlayerCardImage" src="#" alt="Votre Carte de Joueur" class="mt-4 max-w-full h-auto rounded-md border border-gray-300 mx-auto" style="max-height: 250px;">
+        </div>
+    </div>
+
+    <!-- Chargement des SDK Firebase via CDN (version 8.10.1 - très compatible) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
+    <script>
+        // Firebase Client Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDux4S_lY_8mygOBeimpGXl5xeNI0HGeAA",
+            authDomain: "imagination-f2e5c.firebaseapp.com",
+            projectId: "imagination-f2e5c",
+            storageBucket: "imagination-f2e5c.firebasestorage.app",
+            messagingSenderId: "182206843362",
+            appId: "1:182206843362:web:eda2dda1ef85a624a811bb",
+            measurementId: "G-NK53DJQWH6"
+        };
+
+        let app;
+        let auth;
+        let db;
+
+        // Définition des données de jeu
+        const RACES = [
+            "Ange", "Démon", "Vampire", "Haut Humain", "Demi Humain", "Elfe", "Fée",
+            "Géant", "Sirène/Triton", "Druide", "Lycanthrope", "Dragonnier"
+        ];
+        const CLASSES = [
+            "Mage", "Mage Lame", "Épéiste Guerrier", "Assassin", "Ninja", "Sorcière",
+            "Agriculteur", "Tank", "Archer", "Sniper", "Moine", "Alchimiste",
+            "Marionnettiste", "Invocateur"
+        ];
+        const ATTRIBUTES = [
+            "Eau", "Feu", "Terre", "Air", "Poison", "Gravité", "Ténèbre",
+            "Lumière", "Foudre", "Espace", "Temps"
+        ];
+        const TOTAL_STAT_POINTS = 5000;
+
+        // Références aux éléments DOM
+        const getElement = (id) => {
+            const element = document.getElementById(id);
+            if (!element) {
+                console.error(`Erreur: L'élément avec l'ID "${id}" est introuvable.`);
+            }
+            return element;
+        };
+
+        const characterForm = getElement('characterForm');
+        const userIdInput = getElement('userId');
+        const welcomeUsername = getElement('welcomeUsername');
+        const displayPlayerId = getElement('displayPlayerId');
+        const playerStatus = getElement('playerStatus');
+        const playerCardStatus = getElement('playerCardStatus');
+        const raceSelection = getElement('raceSelection');
+        const classSelection = getElement('classSelection');
+        const attributeSelection = getElement('attributeSelection');
+        const uniqueSkillsContainer = getElement('uniqueSkillsContainer');
+        const remainingPointsSpan = getElement('remainingPoints');
+        const statInputs = document.querySelectorAll('.stat-input'); 
+        const characterImageInput = getElement('characterImage');
+        const imagePreview = getElement('imagePreview');
+        const imagePreviewContainer = getElement('imagePreviewContainer');
+        const messageBox = getElement('messageBox');
+        const messageTitle = getElement('messageTitle');
+        const messageContent = getElement('messageContent');
+        const closeMessageBoxBtn = getElement('closeMessageBox');
+        const characterOutput = getElement('characterOutput');
+        const characterJson = getElement('characterJson');
+        const playerSuccessConfirmation = getElement('playerSuccessConfirmation');
+        const whatsAppGroupLinkPlayer = getElement('whatsAppGroupLinkPlayer');
+        const finalPlayerCardImage = getElement('finalPlayerCardImage');
+        const notificationBell = getElement('notificationBell');
+        const notificationBadge = getElement('notificationBadge');
+
+        const existingCharacterControls = getElement('existingCharacterControls');
+        const existingCharUserIdDisplay = getElement('existingCharUserIdDisplay');
+        const existingCharNameDisplay = getElement('existingCharNameDisplay');
+        const existingCharStatusDetails = getElement('existingCharStatusDetails');
+        const overwriteCharacterButton = getElement('overwriteCharacterButton');
+
+        const settingsButton = getElement('settingsButton');
+        const logoutButton = getElement('logoutButton');
+        
+        let currentPlayerAccount = null; 
+
+        /**
+         * Active ou désactive les champs du formulaire.
+         * @param {boolean} enabled - True pour activer, False pour désactiver.
+         */
+        function setFormEnabled(enabled) {
+            if (!characterForm) {
+                console.warn("Le formulaire 'characterForm' est introuvable pour activer/désactiver les champs.");
+                return;
+            }
+            const formElements = characterForm.querySelectorAll('input, textarea, select, button');
+            formElements.forEach(element => {
+                if (element.id === 'userId') {
+                    element.disabled = false;
+                    element.setAttribute('readonly', true);
+                    element.classList.add('bg-gray-200', 'cursor-not-allowed');
+                } else if (element.id === 'overwriteCharacterButton') {
+                    element.disabled = !enabled; 
+                } else {
+                    element.disabled = !enabled;
+                    if (enabled) {
+                        element.classList.remove('bg-gray-200', 'cursor-not-allowed');
+                        element.classList.add('bg-white', 'cursor-auto');
+                    } else {
+                        element.classList.add('bg-gray-200', 'cursor-not-allowed');
+                        element.classList.remove('bg-white', 'cursor-auto');
+                    }
+                }
+            });
+            const submitButton = characterForm.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = !enabled;
+            }
+        }
+
+        /**
+         * Remplit les sections de sélection (Race, Classe, Attributs) avec des cases à cocher/radio.
+         * @param {HTMLElement} container - L'élément DOM parent où insérer les options.
+         * @param {Array<string>} items - La liste des éléments à afficher.
+         * @param {string} namePrefix - Le préfixe du nom pour les éléments input (ex: 'race').
+         * @param {'checkbox' | 'radio'} type - Le type d'input ('checkbox' ou 'radio').
+         */
+        function populateCheckboxes(container, items, namePrefix, type) {
+            if (!container) {
+                console.error(`Erreur: Le conteneur pour "${namePrefix}" est introuvable. Les options ne seront pas générées.`);
+                return;
+            }
+            container.innerHTML = ''; 
+            items.forEach(item => {
+                const label = document.createElement('label');
+                label.className = 'inline-flex items-center p-2 bg-gray-200 rounded-full cursor-pointer hover:bg-blue-200 transition duration-150 ease-in-out';
+                const input = document.createElement('input');
+                input.type = type;
+                input.name = namePrefix;
+                input.value = item;
+                input.className = type === 'radio' ? 'form-radio h-4 w-4 text-blue-600' : 'form-checkbox h-4 w-4 text-blue-600 rounded-md';
+
+                const span = document.createElement('span');
+                span.className = 'ml-2 text-sm text-gray-800';
+                span.textContent = item;
+
+                label.appendChild(input);
+                label.appendChild(span);
+                container.appendChild(label);
+            });
+        }
+
+        // Gestion de la sélection de Race (1 ou 2)
+        if (raceSelection) {
+            raceSelection.addEventListener('change', () => {
+                const selectedRaces = document.querySelectorAll('input[name="race"]:checked');
+                if (selectedRaces.length > 2) {
+                    selectedRaces[selectedRaces.length - 1].checked = false;
+                    showMessage("Limite de Race", "Vous ne pouvez choisir qu'une ou deux races.");
+                }
+            });
+        }
+
+        // Gestion de la sélection de Classe (avec condition Sorcière)
+        if (classSelection) {
+            classSelection.addEventListener('change', () => {
+                const selectedClass = document.querySelector('input[name="class"]:checked');
+                const gender = document.querySelector('input[name="gender"]:checked');
+
+                if (selectedClass && selectedClass.value === 'Sorcière' && (!gender || gender.value !== 'Femme')) {
+                    selectedClass.checked = false; 
+                    showMessage("Sélection de Classe", "La classe 'Sorcière' est exclusivement réservée aux personnages de sexe féminin.");
+                }
+            });
+        }
+
+        // Gestion de la sélection d'Attribut (exactement 3)
+        if (attributeSelection) {
+            attributeSelection.addEventListener('change', () => {
+                const selectedAttributes = document.querySelectorAll('input[name="attribute"]:checked');
+                if (selectedAttributes.length > 3) {
+                    selectedAttributes[selectedAttributes.length - 1].checked = false;
+                    showMessage("Limite d'Attributs", "Vous devez choisir exactement 3 attributs.");
+                }
+            });
+        }
+
+        /**
+         * Génère les champs de texte pour les 3 compétences uniques requises.
+         */
+        function generateUniqueSkillsFields() {
+            if (!uniqueSkillsContainer) {
+                 console.error("Erreur: L'élément uniqueSkillsContainer est introuvable.");
+                 return;
+            }
+            uniqueSkillsContainer.innerHTML = ''; 
+            for (let i = 0; i < 3; i++) {
+                const skillDiv = document.createElement('div');
+                skillDiv.className = 'bg-white p-4 rounded-md shadow-sm border border-gray-200';
+                skillDiv.innerHTML = `
+                    <label for="skillName${i}" class="block text-sm font-medium text-gray-700 mb-1">Nom de la Compétence ${i + 1} :</label>
+                    <input type="text" id="skillName${i}" name="skillName${i}" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Ex: Rayon Givre" required>
+                    <label for="skillDesc${i}" class="block text-sm font-medium text-gray-700 mb-1 mt-3">Description de la Compétence ${i + 1} :</label>
+                    <textarea id="skillDesc${i}" name="skillDesc${i}" rows="3" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 resize-y" placeholder="Ex: Lance un rayon de glace qui gèle les ennemis pendant 3 secondes." required></textarea>
+                `;
+                uniqueSkillsContainer.appendChild(skillDiv);
+            }
+        }
+        
+        /**
+         * Met à jour le nombre de points de statistiques restants.
+         */
+        function updateRemainingPoints() {
+            if (!remainingPointsSpan) {
+                console.error("Erreur: L'élément remainingPointsSpan est introuvable.");
+                return;
+            }
+            let allocatedPoints = 0;
+            statInputs.forEach(input => {
+                allocatedPoints += parseInt(input.value) || 0; 
+            });
+
+            const remaining = TOTAL_STAT_POINTS - allocatedPoints;
+            remainingPointsSpan.textContent = remaining;
+
+            if (remaining < 0) {
+                remainingPointsSpan.classList.remove('text-blue-600', 'text-green-600');
+                remainingPointsSpan.classList.add('text-red-600');
+            } else if (remaining === 0) {
+                remainingPointsSpan.classList.remove('text-red-600', 'text-blue-600');
+                remainingPointsSpan.classList.add('text-green-600');
+            } else {
+                remainingPointsSpan.classList.remove('text-red-600', 'text-green-600');
+                remainingPointsSpan.classList.add('text-blue-600');
+            }
+        }
+
+        // Attache les écouteurs d'événements aux champs de statistiques
+        if (statInputs && statInputs.length > 0) {
+            statInputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    let currentAllocated = 0;
+                    statInputs.forEach(innerInput => {
+                        currentAllocated += parseInt(innerInput.value) || 0;
+                    });
+
+                    if (currentAllocated > TOTAL_STAT_POINTS) {
+                        const excess = currentAllocated - TOTAL_STAT_POINTS;
+                        input.value = Math.max(0, parseInt(input.value) - excess);
+                    }
+                    updateRemainingPoints();
+                });
+                input.addEventListener('change', updateRemainingPoints);
+            });
+        }
+
+        // Gestion de l'aperçu de l'image du personnage
+        if (characterImageInput) {
+            characterImageInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        if (imagePreview) imagePreview.src = e.target.result;
+                        if (imagePreviewContainer) {
+                            imagePreviewContainer.classList.remove('hidden');
+                            imagePreviewContainer.classList.add('flex');
+                        }
+                    };
+                    reader.readAsDataURL(file); 
+                } else {
+                    if (imagePreview) imagePreview.src = "#";
+                    if (imagePreviewContainer) {
+                        imagePreviewContainer.classList.add('hidden');
+                        imagePreviewContainer.classList.remove('flex');
+                    }
+                }
+            });
+        }
+
+        /**
+         * Affiche une boîte de message modale à l'utilisateur.
+         * @param {string} title - Le titre du message.
+         * @param {string} content - Le contenu du message.
+         */
+        function showMessage(title, content) {
+            if (messageTitle) messageTitle.textContent = title;
+            if (messageContent) messageContent.textContent = content;
+            if (messageBox) messageBox.classList.remove('hidden');
+            else alert(title + "\n\n" + content); // Fallback to alert
+        }
+
+        // Ferme la boîte de message modale
+        if (closeMessageBoxBtn) {
+            closeMessageBoxBtn.addEventListener('click', () => {
+                if (messageBox) messageBox.classList.add('hidden');
+            });
+        }
+
+        // Gestion de la soumission du formulaire
+        if (characterForm) {
+            characterForm.addEventListener('submit', async function(event) {
+                event.preventDefault(); 
+
+                if (!currentPlayerAccount) {
+                    showMessage("Erreur", "Vous n'êtes pas connecté. Veuillez vous connecter ou vous inscrire.");
+                    return;
+                }
+
+                const submittedUserId = currentPlayerAccount.userId; 
+                const avatarName = getElement('avatarName')?.value.trim();
+                const phone = getElement('phone')?.value.trim();
+                const gender = document.querySelector('input[name="gender"]:checked')?.value;
+
+                const selectedRaces = Array.from(document.querySelectorAll('input[name="race"]:checked')).map(input => input.value);
+                const selectedClass = document.querySelector('input[name="class"]:checked')?.value;
+                const selectedAttributes = Array.from(document.querySelectorAll('input[name="attribute"]:checked')).map(input => input.value);
+
+                const uniqueSkills = [];
+                let allSkillsValid = true;
+                for (let i = 0; i < 3; i++) {
+                    const skillNameElement = getElement(`skillName${i}`);
+                    const skillDescElement = getElement(`skillDesc${i}`);
+
+                    if (!skillNameElement || !skillDescElement) {
+                        console.error(`Missing skill input elements for skill ${i + 1}`);
+                        allSkillsValid = false;
+                        break;
+                    }
+                    const name = skillNameElement.value.trim();
+                    const desc = skillDescElement.value.trim();
+                    if (name && desc) {
+                        uniqueSkills.push({ name: name, description: desc });
+                    } else {
+                        allSkillsValid = false; 
+                    }
+                }
+
+                const manaStamina = parseInt(getElement('manaStamina')?.value) || 0;
+                const health = parseInt(getElement('health')?.value) || 0;
+                const agility = parseInt(getElement('agility')?.value) || 0;
+                const strength = parseInt(getElement('strength')?.value) || 0;
+                const totalStats = manaStamina + health + agility + strength;
+
+                // Validation côté client
+                if (!submittedUserId || !avatarName || !phone || !gender || selectedRaces.length < 1 || selectedRaces.length > 2 || 
+                    !selectedClass || selectedAttributes.length !== 3 || !allSkillsValid || uniqueSkills.length !== 3 || 
+                    totalStats !== TOTAL_STAT_POINTS) {
+                    showMessage("Erreur de Validation", "Veuillez remplir correctement tous les champs du formulaire.");
+                    return;
+                }
+                
+                // Validation spécifique de la classe "Sorcière"
+                if (selectedClass === 'Sorcière' && gender !== 'Femme') {
+                    showMessage("Erreur de Validation", "La classe 'Sorcière' est uniquement pour les personnages féminins.");
+                    return;
+                }
+
+
+                const characterSubmissionData = {
+                    userId: submittedUserId,
+                    username: currentPlayerAccount.username, 
+                    status: 'pending', 
+                    timestamp: new Date().toISOString(),
+                    characterData: {
+                        nomAvatar: avatarName,
+                        numeroTelephoneRoleplayer: phone,
+                        sexe: gender,
+                        races: selectedRaces,
+                        classe: selectedClass,
+                        attributs: selectedAttributes,
+                        competencesUniques: uniqueSkills,
+                        statistiques: {
+                            manaStamina: manaStamina,
+                            vie: health,
+                            agilite: agility,
+                            force: strength
+                        },
+                        image: imagePreview?.src === '#' ? null : imagePreview?.src 
+                    },
+                    refusalDetails: null,
+                    playerCardImage: null
+                };
+
+                try {
+                    // Si un écrasement est en cours, ajoute un flag spécifique
+                    if (overwriteCharacterButton && overwriteCharacterButton.dataset.overwriting === 'true') {
+                         characterSubmissionData.type = 'overwrite';
+                    }
+
+                    // Envoi des données de soumission à l'API backend
+                    const response = await fetch('/api/submissions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(characterSubmissionData)
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        showMessage("Soumission Réussie !", "Votre personnage a été soumis pour approbation. Un administrateur l'examinera bientôt.");
+                        characterForm.reset(); 
+                        if (userIdInput) userIdInput.value = submittedUserId; 
+                        if (imagePreview) imagePreview.src = "#";
+                        if (imagePreviewContainer) imagePreviewContainer.classList.add('hidden');
+                        updateRemainingPoints(); 
+                        if (overwriteCharacterButton) overwriteCharacterButton.dataset.overwriting = 'false'; 
+                        
+                        setTimeout(() => document.dispatchEvent(new Event('DOMContentLoaded')), 100);
+                    } else {
+                        showMessage("Erreur de Soumission", result.message || "Une erreur est survenue lors de la soumission de votre personnage.");
+                    }
+
+                } catch (error) {
+                    console.error("Erreur lors de l'envoi de la soumission:", error);
+                    showMessage("Erreur Réseau", "Impossible de communiquer avec le serveur pour la soumission du personnage.");
+                }
+            });
+        }
+
+        // Écouteur d'événement pour la sélection du sexe (réévalue la classe Sorcière)
+        document.querySelectorAll('input[name="gender"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const currentSelectedClass = document.querySelector('input[name="class"]:checked');
+                if (currentSelectedClass && currentSelectedClass.value === 'Sorcière') {
+                    currentSelectedClass.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+
+        /**
+         * Met à jour le compteur sur la cloche de notification.
+         */
+        async function updateNotificationBell() {
+            if (!currentPlayerAccount) {
+                if (notificationBadge) notificationBadge.classList.add('hidden');
+                return;
+            }
+            try {
+                const submissionsResponse = await fetch(`/api/submissions?userId=${currentPlayerAccount.userId}`);
+                const userSubmissions = submissionsResponse.ok ? await submissionsResponse.json() : [];
+
+                const userNotifications = userSubmissions.filter(s =>
+                    s.status === 'pending' || s.status === 'refused' || s.status === 'accepted'
+                );
+                
+                const userResponse = await fetch(`/api/users?userId=${currentPlayerAccount.userId}`);
+                const userData = userResponse.ok ? await userResponse.json() : { messages: [] };
+                const unreadMessages = (userData.messages || []).filter(msg => !msg.read);
+
+                const totalNotifications = userNotifications.length + unreadMessages.length;
+
+                if (notificationBadge) {
+                    if (totalNotifications > 0) {
+                        notificationBadge.textContent = totalNotifications;
+                        notificationBadge.classList.remove('hidden');
+                    } else {
+                        notificationBadge.classList.add('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour de la cloche de notification:", error);
+            }
+        }
+
+        // Au chargement de la page: vérifie si l'utilisateur est connecté et charge ses données
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialisation de l'application Firebase
+            if (!firebase.apps.length) {
+                app = firebase.initializeApp(firebaseConfig);
+            } else {
+                app = firebase.app();
+            }
+            auth = firebase.auth();
+            db = firebase.firestore();
+
+            // Remplir les sélections (doit être fait après l'initialisation de Firebase ou DOMContentLoaded)
+            populateCheckboxes(raceSelection, RACES, 'race', 'checkbox');
+            populateCheckboxes(classSelection, CLASSES, 'class', 'radio');
+            populateCheckboxes(attributeSelection, ATTRIBUTES, 'attribute', 'checkbox');
+            generateUniqueSkillsFields(); // Générer les champs de compétences
+            updateRemainingPoints(); // Afficher les points restants initiaux
+
+            const userAccountFromLS = JSON.parse(localStorage.getItem('iwUserAccount'));
+
+            if (!userAccountFromLS || !userAccountFromLS.userId) {
+                if (userIdInput) {
+                    userIdInput.placeholder = "Veuillez vous inscrire d'abord";
+                    userIdInput.value = '';
+                }
+                showMessage("Non Connecté", "Veuillez vous connecter ou vous inscrire pour utiliser le créateur de personnages.");
+                if (notificationBell) notificationBell.classList.add('hidden');
+                setFormEnabled(false); 
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/users?userId=${userAccountFromLS.userId}`);
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        showMessage("Erreur de Compte", "Votre compte n'a pas été trouvé. Veuillez vous réinscrire ou vous reconnecter.");
+                        localStorage.removeItem('iwUserAccount'); 
+                        setFormEnabled(false);
+                        return;
+                    }
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                currentPlayerAccount = await response.json(); 
+
+                if (userIdInput) userIdInput.value = currentPlayerAccount.userId;
+                if (welcomeUsername) welcomeUsername.textContent = currentPlayerAccount.username;
+                if (displayPlayerId) displayPlayerId.textContent = currentPlayerAccount.userId;
+                if (playerStatus) playerStatus.classList.remove('hidden');
+
+                const submissionsResponse = await fetch(`/api/submissions?userId=${currentPlayerAccount.userId}`);
+                const userSubmissions = submissionsResponse.ok ? await submissionsResponse.json() : [];
+                const activeSubmission = userSubmissions.find(s => 
+                    s.userId === currentPlayerAccount.userId && (s.status === 'pending' || s.status === 'accepted' || s.status === 'completed')
+                );
+
+                if (playerSuccessConfirmation) playerSuccessConfirmation.classList.add('hidden');
+
+                if (activeSubmission) {
+                    if (existingCharacterControls) existingCharacterControls.classList.remove('hidden');
+                    setFormEnabled(false); 
+
+                    if (existingCharUserIdDisplay) existingCharUserIdDisplay.textContent = currentPlayerAccount.userId;
+                    if (existingCharNameDisplay) existingCharNameDisplay.textContent = activeSubmission.characterData.nomAvatar;
+
+                    let statusText = '';
+                    if (activeSubmission.status === 'pending') {
+                        statusText = 'Ce personnage est en attente d\'examen.';
+                        if (playerCardStatus) playerCardStatus.innerHTML = '<span class="text-blue-700">Votre soumission est en attente d\'examen.</span>';
+                    } else if (activeSubmission.status === 'accepted') {
+                        statusText = 'Ce personnage est accepté. La carte de joueur est en cours de préparation par l\'administrateur.';
+                        if (playerCardStatus) playerCardStatus.innerHTML = '<span class="text-orange-700">Votre personnage est accepté ! La carte est en cours de préparation par l\'administrateur.</span>';
+                    } else if (activeSubmission.status === 'completed') {
+                        statusText = 'Ce personnage est intégré et sa carte de joueur est prête.';
+                        if (playerCardStatus) playerCardStatus.innerHTML = '<span class="text-green-700">Félicitations ! Votre carte de joueur est prête.</span>';
+                    }
+                    if (existingCharStatusDetails) existingCharStatusDetails.textContent = statusText;
+
+                } else {
+                    if (existingCharacterControls) existingCharacterControls.classList.add('hidden');
+                    setFormEnabled(true); 
+                    if (playerCardStatus) playerCardStatus.innerHTML = '<span class="text-blue-700">Soumettez votre personnage ci-dessous.</span>';
+                }
+
+                updateNotificationBell(); 
+
+            } catch (error) {
+                console.error("Erreur lors du chargement des données utilisateur:", error);
+                showMessage("Erreur de Chargement", "Impossible de charger vos informations. Veuillez réessayer plus tard ou vous reconnecter.");
+                localStorage.removeItem('iwUserAccount'); 
+                setFormEnabled(false);
+            }
+        });
+
+        // Gère le clic sur le bouton "Créer un nouveau personnage (écrasera l'ancien)"
+        if (overwriteCharacterButton) {
+            overwriteCharacterButton.addEventListener('click', () => {
+                if (existingCharacterControls) existingCharacterControls.classList.add('hidden');
+                setFormEnabled(true); 
+                if (characterForm) characterForm.reset(); 
+                if (userIdInput && currentPlayerAccount) userIdInput.value = currentPlayerAccount.userId; 
+                if (imagePreview) imagePreview.src = "#";
+                if (imagePreviewContainer) imagePreviewContainer.classList.add('hidden');
+                updateRemainingPoints();
+                if (playerSuccessConfirmation) playerSuccessConfirmation.classList.add('hidden');
+                if (characterOutput) characterOutput.classList.add('hidden');
+
+                overwriteCharacterButton.dataset.overwriting = 'true'; 
+                showMessage("Prêt pour un nouveau personnage", "Vous pouvez maintenant créer un nouveau personnage. L'ancien sera archivé et notifié aux administrateurs à la soumission de ce nouveau formulaire.");
+            });
+        }
+
+        // Gère le clic sur le lien du groupe WhatsApp
+        if (whatsAppGroupLinkPlayer) {
+            whatsAppGroupLinkPlayer.addEventListener('click', async (event) => {
+                event.preventDefault(); 
+
+                console.log("Clic sur le lien WhatsApp détecté.");
+
+                if (!currentPlayerAccount) {
+                    console.log("Aucun compte utilisateur trouvé (currentPlayerAccount est null).");
+                    showMessage("Erreur", "Vous devez être connecté pour rejoindre le groupe.");
+                    return;
+                }
+
+                try {
+                    const submissionsResponse = await fetch(`/api/submissions?userId=${currentPlayerAccount.userId}`);
+                    const userSubmissions = submissionsResponse.ok ? await submissionsResponse.json() : [];
+                    const completedSubmission = userSubmissions.find(s => s.status === 'completed');
+
+                    if (completedSubmission) {
+                        console.log("Soumission complétée trouvée pour l'utilisateur:", completedSubmission);
+                        const alertResponse = await fetch('/api/alerts', { 
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'whatsapp_joined',
+                                userId: currentPlayerAccount.userId,
+                                username: currentPlayerAccount.username, 
+                                characterName: completedSubmission.characterData.nomAvatar,
+                                submissionId: completedSubmission.id, 
+                                message: `Le joueur ${currentPlayerAccount.username} (ID: ${currentPlayerAccount.userId}) a cliqué sur le lien WhatsApp pour son personnage "${completedSubmission.characterData.nomAvatar}".`
+                            })
+                        });
+
+                        if (alertResponse.ok) {
+                            console.log("Alerte WhatsApp envoyée à l'administrateur via API.");
+                            window.location.href = 'whatsapp_success.html';
+                        } else {
+                            const errorResult = await alertResponse.json();
+                            console.error("Erreur lors de l'envoi de l'alerte WhatsApp:", errorResult);
+                            showMessage("Erreur", errorResult.message || "Impossible d'envoyer la notification à l'administrateur.");
+                        }
+                    } else {
+                        console.log("Aucune soumission complétée trouvée pour cet utilisateur. Impossible de créer l'alerte.");
+                        showMessage("Attention", "Votre carte n'est pas encore prête ou vous n'avez pas de personnage complété.");
+                    }
+                } catch (error) {
+                    console.error("Erreur réseau lors du clic WhatsApp:", error);
+                    showMessage("Erreur Réseau", "Impossible de communiquer avec le serveur.");
+                }
+            });
+        }
+            
+        // Logique du bouton de déconnexion
+        if (logoutButton) {
+            logoutButton.addEventListener('click', async (event) => { // Added async for signOut
+                event.preventDefault(); 
+                
+                try {
+                    await auth.signOut(); // Déconnexion de Firebase Authentication
+                    localStorage.removeItem('iwUserAccount'); // Supprime les informations de l'utilisateur de localStorage
+                    showMessage("Déconnexion", "Vous avez été déconnecté avec succès. Redirection vers la page de connexion...");
+                    setTimeout(() => {
+                        window.location.href = 'login.html'; 
+                    }, 1000);
+                } catch (error) {
+                    console.error("Erreur lors de la déconnexion Firebase:", error);
+                    showMessage("Erreur de Déconnexion", "Impossible de vous déconnecter pour le moment. Veuillez réessayer.");
+                }
+            });
+        }
+    </script>
+</body>
+</html>
