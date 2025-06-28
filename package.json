@@ -1,0 +1,26 @@
+{
+  "name": "imagination-world-app",
+  "version": "1.0.0",
+  "description": "Backend dependencies for Imagination World Vercel app",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js"
+  },
+  "keywords": [
+    "rpg",        
+    "character-creator",
+    "game",
+    "admin-panel",
+    "player-management",
+    "firestore",
+    "vercel"
+  ],
+  "author": "CLEDANOR David",
+  "license": "ISC",
+  "dependencies": {
+    "firebase": "^9.23.0",
+    "firebase-admin": "^12.1.0"
+  },
+  "type": "module"
+}
+

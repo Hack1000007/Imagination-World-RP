@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau de Bord Administrateur - Imagination World</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        .container {
+            max-width: 95%;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 1rem;
+        }
+        @media (min-width: 1024px) {
+            .container {
+                max-width: 1400px;
+            }
+        }
+        .submission-item {
+            cursor: pointer;
+            transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+        }
+        .submission-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .submission-item.selected {
+            border: 2px solid #3b82f6; /* Blue-500 */
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); /* Ring-blue-500 */
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+            position: fixed; /* Added fixed positioning */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-content {
+            animation: fadeInScale 0.3s ease-out forwards;
+            background-color: #fff; /* Added white background */
+            padding: 1.5rem; /* Added padding */
+            border-radius: 0.5rem; /* Added border-radius */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Added shadow */
+            max-width: 90%; /* Responsive width */
+            width: 100%; /* Full width within max-width */
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center min-h-screen p-4">
+
+    <div class="container bg-white shadow-xl rounded-lg p-6 md:p-8 mt-8 mb-8 w-full">
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-6">Tableau de Bord Administrateur</h1>
+        <p class="text-center text-gray-600 mb-8">Gérez les soumissions de personnages et les alertes pour Imagination World.</p>
+
+        <!-- Boutons d'action globaux -->
+        <div class="mb-8 text-center flex flex-wrap justify-center gap-4">
+            <button id="globalRefreshButton" class="bg-blue-500 text-white py-3 px-6 rounded-md font-semibold text-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out shadow-md">
+                Rafraîchir les Données
+            </button>
+            <a href="user_management.html" class="inline-block bg-teal-600 text-white py-3 px-6 rounded-md font-semibold text-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition duration-150 ease-in-out shadow-md">
+                Gérer les Utilisateurs
+            </a>
+            <!-- Bouton Déconnexion Admin -->
+            <button id="adminLogoutButton" class="bg-red-500 text-white py-3 px-6 rounded-md font-semibold text-lg hover:bg-red-600 transition duration-150 ease-in-out shadow-md">
+                Déconnexion Admin
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Colonne des Soumissions en Attente -->
+            <div class="bg-gray-50 p-5 rounded-md shadow-md h-full flex flex-col">
+                <h2 class="text-2xl font-bold text-orange-700 mb-4">Soumissions en Attente (<span id="pendingCount">0</span>)</h2>
+                <div id="pendingSubmissionsList" class="space-y-3 overflow-y-auto flex-grow max-h-96">
+                    <p id="noPending" class="text-gray-500 text-center">Aucune soumission en attente.</p>
+                </div>
+            </div>
+
+            <!-- Colonne des Soumissions Refusées/Acceptées -->
+            <div class="bg-gray-50 p-5 rounded-md shadow-md h-full flex flex-col">
+                <h2 class="text-2xl font-bold text-red-700 mb-4">Soumissions Refusées / Écrasées (<span id="refusedCount">0</span>)</h2>
+                <div id="refusedSubmissionsList" class="space-y-3 overflow-y-auto max-h-48 mb-6">
+                    <p id="noRefused" class="text-gray-500 text-center">Aucune soumission refusée ou écrasée.</p>
+                </div>
+
+                <h2 class="text-2xl font-bold text-green-700 mb-4 mt-6">Soumissions Acceptées / Complétées (<span id="acceptedCount">0</span>)</h2>
+                <div id="acceptedSubmissionsList" class="space-y-3 overflow-y-auto flex-grow max-h-48">
+                    <p id="noAccepted" class="text-gray-500 text-center">Aucune soumission acceptée ou complétée.</p>
+                </div>
+            </div>
+
+            <!-- Colonne des Alertes Administrateur -->
+            <div class="bg-gray-50 p-5 rounded-md shadow-md h-full flex flex-col">
+                <h2 class="text-2xl font-bold text-purple-700 mb-4">Alertes Administrateur (<span id="adminAlertsCount">0</span>)</h2>
+                <div id="adminAlertsList" class="space-y-3 overflow-y-auto flex-grow max-h-96">
+                    <p id="noAlerts" class="text-gray-500 text-center">Aucune alerte en cours.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section des Détails du Formulaire Sélectionné -->
+        <div class="bg-white p-6 rounded-md shadow-xl mt-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Détails du Formulaire / Alerte</h2>
+            
+            <p id="selectFormMessage" class="text-gray-600 text-center p-8">Sélectionnez un formulaire ou une alerte dans la liste pour voir les détails ici.</p>
+
+            <div id="characterDetails" class="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <p class="text-sm font-medium text-gray-700">ID Joueur:</p>
+                        <p id="detailUserId" class="text-gray-900 font-semibold text-lg"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-700">Nom de l'Avatar:</p>
+                        <p id="detailAvatarName" class="text-gray-900 font-semibold text-lg"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-700">Statut:</p>
+                        <p id="detailStatus" class="font-bold text-lg"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-700">Sexe:</p>
+                        <p id="detailGender" class="text-gray-900"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-700">Numéro de Téléphone:</p>
+                        <p id="detailPhone" class="text-gray-900"></p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <p class="text-sm font-medium text-gray-700">Races:</p>
+                    <ul id="detailRaces" class="list-disc list-inside text-gray-900"></ul>
+                </div>
+                <div class="mb-6">
+                    <p class="text-sm font-medium text-gray-700">Classe:</p>
+                    <p id="detailClass" class="text-gray-900"></p>
+                </div>
+                <div class="mb-6">
+                    <p class="text-sm font-medium text-gray-700">Attributs:</p>
+                    <ul id="detailAttributes" class="list-disc list-inside text-gray-900"></ul>
+                </div>
+                
+                <div class="mb-6">
+                    <p class="text-sm font-medium text-gray-700">Compétences Uniques:</p>
+                    <div id="detailSkills" class="space-y-2"></div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div>
+                        <p class="text-sm font-medium text-gray-700">Mana / Stamina:</p>
+                        <p id="detailMana" class="text-gray-900 font-semibold"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-700">Vie:</p>
+                        <p id="detailHealth" class="text-gray-900 font-semibold"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-700">Agilité:</p>
+                        <p id="detailAgility" class="text-gray-900 font-semibold"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-700">Force:</p>
+                        <p id="detailStrength" class="text-gray-900 font-semibold"></p>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <p class="text-sm font-medium text-gray-700">Image du Personnage:</p>
+                    <div id="detailImageContainer" class="mt-2 hidden justify-center items-center p-4 bg-gray-100 rounded-md">
+                        <img id="detailImage" src="#" alt="Image du Personnage" class="max-w-full h-auto rounded-md max-h-64 object-contain">
+                    </div>
+                    <p id="noImageText" class="text-gray-500 mt-2 text-center">Aucune image téléchargée.</p>
+                </div>
+
+                <!-- Section pour les raisons de refus -->
+                <div id="detailRefusalReasonsContainer" class="hidden mt-6 p-4 bg-red-100 border border-red-300 rounded-md">
+                    <p class="font-semibold text-red-800 mb-2">Raisons du Refus :</p>
+                    <ul id="detailRefusalReasons" class="list-disc list-inside text-red-800 text-sm"></ul>
+                    <p id="detailCustomReason" class="text-red-800 text-sm mt-2"></p>
+                </div>
+
+                <!-- Section pour l'image de carte joueur si complété -->
+                <div id="detailPlayerCardImageContainer" class="hidden mt-6 p-4 bg-green-100 border border-green-300 rounded-md">
+                    <p class="font-semibold text-green-800 mb-2">Carte de Joueur Envoyée :</p>
+                    <img id="detailPlayerCardImage" src="#" alt="Carte de Joueur" class="mt-2 max-w-full h-auto rounded-md border border-green-300 mx-auto" style="max-height: 250px;">
+                </div>
+
+                <!-- Section pour les détails d'alerte -->
+                <div id="alertDetails" class="hidden mt-6 p-4 bg-purple-100 border border-purple-300 rounded-md">
+                    <p class="font-semibold text-purple-800 mb-2">Détails de l'Alerte :</p>
+                    <p class="text-sm text-gray-700">Type: <span id="alertType" class="font-semibold"></span></p>
+                    <p class="text-sm text-gray-700">Message: <span id="alertMessage" class="font-semibold"></span></p>
+                    <p class="text-sm text-gray-700">ID Joueur: <span id="alertUserId" class="font-semibold"></span></p>
+                    <p class="text-sm text-gray-700">Date: <span id="alertTimestamp" class="font-semibold"></span></p>
+                </div>
+
+
+                <!-- Boutons d'Action (pour les soumissions en attente ou alertes) -->
+                <div id="actionButtons" class="flex flex-col sm:flex-row justify-end gap-4 mt-6 hidden">
+                    <button id="refuseButton" class="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition duration-150 ease-in-out">
+                        Refuser le Personnage
+                    </button>
+                    <button id="acceptButton" class="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition duration-150 ease-in-out">
+                        Accepter le Personnage
+                    </button>
+                    <button id="markAlertAsRead" class="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition duration-150 ease-in-out">
+                        Marquer comme lu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale de Message -->
+    <div id="messageBox" class="fixed inset-0 modal-overlay flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center modal-content">
+            <h3 id="messageTitle" class="text-xl font-bold mb-4 text-gray-800"></h3>
+            <p id="messageContent" class="text-gray-700 mb-6 text-sm"></p>
+            <button id="closeMessageBox" class="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Chargement des SDK Firebase via CDN (version 8.10.1 - très compatible) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // Firebase Client Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDux4S_lY_8mygOBeimpGXl5xeNI0HGeAA",
+            authDomain: "imagination-f2e5c.firebaseapp.com",
+            projectId: "imagination-f2e5c",
+            storageBucket: "imagination-f2e5c.firebasestorage.app",
+            messagingSenderId: "182206843362",
+            appId: "1:182206843362:web:eda2dda1ef85a624a811bb",
+            measurementId: "G-NK53DJQWH6"
+        };
+
+        let app;
+        let auth;
+        let db;
+
+        const pendingSubmissionsList = document.getElementById('pendingSubmissionsList');
+        const refusedSubmissionsList = document.getElementById('refusedSubmissionsList');
+        const acceptedSubmissionsList = document.getElementById('acceptedSubmissionsList');
+        const adminAlertsList = document.getElementById('adminAlertsList');
+
+        const pendingCount = document.getElementById('pendingCount');
+        const refusedCount = document.getElementById('refusedCount');
+        const acceptedCount = document.getElementById('acceptedCount');
+        const adminAlertsCount = document.getElementById('adminAlertsCount');
+
+        const noPending = document.getElementById('noPending');
+        const noRefused = document.getElementById('noRefused');
+        const noAccepted = document.getElementById('noAccepted');
+        const noAlerts = document.getElementById('noAlerts');
+
+        const globalRefreshButton = document.getElementById('globalRefreshButton');
+        const adminLogoutButton = document.getElementById('adminLogoutButton'); // Admin Logout Button
+
+        const characterDetailsDiv = document.getElementById('characterDetails');
+        const selectFormMessage = document.getElementById('selectFormMessage');
+        const messageBox = document.getElementById('messageBox');
+        const messageTitle = document.getElementById('messageTitle');
+        const messageContent = document.getElementById('messageContent');
+        const closeMessageBoxBtn = document.getElementById('closeMessageBox');
+
+        let currentSelectedItem = null; // Stores the current submission/alert data being viewed
+
+        /**
+         * Function to show a generic message modal.
+         * @param {string} title - The title of the message.
+         * @param {string} content - The content of the message.
+         */
+        function showMessage(title, content) {
+            if (messageTitle) messageTitle.textContent = title;
+            if (messageContent) messageContent.textContent = content;
+            if (messageBox) messageBox.classList.remove('hidden');
+            else console.error("Error: Could not display modal, missing or uninitialized elements.");
+        }
+
+        // Close generic message modal
+        if (closeMessageBoxBtn) {
+            closeMessageBoxBtn.addEventListener('click', () => {
+                if (messageBox) messageBox.classList.add('hidden');
+            });
+        }
+
+        /**
+         * Verifies if the current user has admin role.
+         * Redirects to login if not authenticated or not admin.
+         */
+        async function checkAdminRoleAndRedirect() {
+            // Initialize Firebase if not already initialized
+            if (!firebase.apps.length) {
+                app = firebase.initializeApp(firebaseConfig);
+            } else {
+                app = firebase.app();
+            }
+            auth = firebase.auth();
+            db = firebase.firestore(); // Needed for role check in Firestore
+
+            const user = auth.currentUser;
+            if (!user) {
+                console.warn("User not authenticated. Redirecting to login.");
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                // Fetch user data from Firestore to check role
+                const userDocRef = db.collection('users').doc(user.uid);
+                const docSnap = await userDocRef.get();
+
+                if (docSnap.exists) {
+                    const userData = docSnap.data();
+                    if (userData.role !== 'admin') {
+                        console.warn("User is not an admin. Redirecting to index.");
+                        window.location.href = 'index.html';
+                    } else {
+                        // User is admin, proceed to load data
+                        console.log("Admin authenticated.");
+                        loadAllData();
+                    }
+                } else {
+                    console.warn("User data not found in Firestore. Redirecting to login.");
+                    window.location.href = 'login.html';
+                }
+            } catch (error) {
+                console.error("Error checking admin role:", error);
+                showMessage("Erreur d'authentification", "Impossible de vérifier votre statut administrateur. Veuillez réessayer.");
+                setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+            }
+        }
+
+
+        // Function to load all data from the API
+        async function loadAllData() {
+            try {
+                // Get the admin user's ID token for authentication with backend APIs
+                const user = auth.currentUser;
+                if (!user) {
+                    // This case should be handled by checkAdminRoleAndRedirect
+                    console.error("No authenticated user for API calls.");
+                    return;
+                }
+                const idToken = await user.getIdToken();
+
+                // Fetch submissions from the API
+                const submissionsResponse = await fetch('/api/submissions', {
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+                const submissions = submissionsResponse.ok ? await submissionsResponse.json() : [];
+
+                // Fetch admin alerts from the API
+                const alertsResponse = await fetch('/api/alerts', {
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+                const adminAlerts = alertsResponse.ok ? await alertsResponse.json() : [];
+
+                // Filter submissions by status
+                const pending = submissions.filter(s => s.status === 'pending');
+                const refused = submissions.filter(s => s.status === 'refused' || s.status === 'overwritten');
+                const accepted = submissions.filter(s => s.status === 'accepted' || s.status === 'completed');
+
+                // Clear current lists
+                if (pendingSubmissionsList) pendingSubmissionsList.innerHTML = '';
+                if (refusedSubmissionsList) refusedSubmissionsList.innerHTML = '';
+                if (acceptedSubmissionsList) acceptedSubmissionsList.innerHTML = '';
+                if (adminAlertsList) adminAlertsList.innerHTML = '';
+
+                // Update counts
+                if (pendingCount) pendingCount.textContent = pending.length;
+                if (refusedCount) refusedCount.textContent = refused.length;
+                if (acceptedCount) acceptedCount.textContent = accepted.length;
+                if (adminAlertsCount) adminAlertsCount.textContent = adminAlerts.length;
+
+                // Toggle visibility of "no items" messages
+                if (noPending) noPending.classList.toggle('hidden', pending.length > 0);
+                if (noRefused) noRefused.classList.toggle('hidden', refused.length > 0);
+                if (noAccepted) noAccepted.classList.toggle('hidden', accepted.length > 0);
+                if (noAlerts) noAlerts.classList.toggle('hidden', adminAlerts.length > 0);
+
+                // Populate lists
+                pending.forEach(submission => {
+                    const item = createSubmissionListItem(submission);
+                    if (pendingSubmissionsList) pendingSubmissionsList.appendChild(item);
+                });
+
+                refused.forEach(submission => {
+                    const item = createSubmissionListItem(submission);
+                    if (refusedSubmissionsList) refusedSubmissionsList.appendChild(item);
+                });
+
+                accepted.forEach(submission => {
+                    const item = createSubmissionListItem(submission);
+                    if (acceptedSubmissionsList) acceptedSubmissionsList.appendChild(item);
+                });
+
+                adminAlerts.forEach(alert => {
+                    const alertItem = createAlertListItem(alert);
+                    if (adminAlertsList) adminAlertsList.appendChild(alertItem);
+                });
+
+                // Re-select item if it was previously selected and still exists
+                if (currentSelectedItem) {
+                    let found = false;
+                    let updatedItem = null;
+                    if (currentSelectedItem.type === 'submission') {
+                        updatedItem = submissions.find(s => s.id === currentSelectedItem.data.id);
+                        found = !!updatedItem;
+                    } else if (currentSelectedItem.type === 'alert') {
+                        updatedItem = adminAlerts.find(a => a.id === currentSelectedItem.data.id);
+                        found = !!updatedItem;
+                    }
+
+                    if (!found) {
+                        if (characterDetailsDiv) characterDetailsDiv.classList.add('hidden');
+                        if (selectFormMessage) selectFormMessage.classList.remove('hidden');
+                        currentSelectedItem = null;
+                    } else {
+                        displaySelectedItem(currentSelectedItem.type, updatedItem);
+                    }
+                }
+
+            } catch (error) {
+                console.error("Erreur lors du chargement des données admin:", error);
+                showMessage("Erreur de Chargement", "Impossible de charger les données. Vérifiez la connexion à l'API ou votre statut admin.");
+                // If the error is due to authentication, redirect to login
+                if (error.message.includes('Token expired') || error.message.includes('Unauthenticated') || error.message.includes('Unauthorized')) {
+                    setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+                }
+            }
+        }
+
+        // Creates an HTML list item for a character submission
+        function createSubmissionListItem(submission) {
+            const item = document.createElement('div');
+            let itemClass = 'submission-item p-3 border border-gray-200 rounded-md shadow-sm flex justify-between items-center bg-white';
+            let statusIndicator = '';
+
+            if (submission.status === 'pending') {
+                itemClass += ' border-l-4 border-l-orange-500';
+            } else if (submission.status === 'refused') {
+                itemClass += ' border-l-4 border-l-red-500';
+                statusIndicator = ' <span class="text-xs bg-red-200 text-red-800 px-1 rounded">Refusé</span>';
+            } else if (submission.status === 'overwritten') {
+                itemClass += ' border-l-4 border-l-gray-500';
+                statusIndicator = ' <span class="text-xs bg-gray-200 text-gray-800 px-1 rounded">Écrasé</span>';
+            } else if (submission.status === 'accepted') {
+                itemClass += ' border-l-4 border-l-yellow-500';
+                statusIndicator = ' <span class="text-xs bg-yellow-200 text-yellow-800 px-1 rounded">Carte en attente</span>';
+            } else if (submission.status === 'completed') {
+                itemClass += ' border-l-4 border-l-green-500';
+                statusIndicator = ' <span class="text-xs bg-green-200 text-green-800 px-1 rounded">Carte envoyée</span>';
+            }
+
+            item.className = itemClass;
+            item.dataset.id = submission.id;
+            item.dataset.type = 'submission';
+            item.innerHTML = `
+                <div>
+                    <p class="font-semibold text-gray-800">${submission.characterData.nomAvatar}</p>
+                    <p class="text-sm text-gray-600">ID Joueur: <span class="font-mono text-blue-600">${submission.userId}</span>${statusIndicator}</p>
+                    <p class="text-xs text-gray-500">Soumis le: ${new Date(submission.timestamp).toLocaleDateString()}</p>
+                </div>
+            `;
+            return item;
+        }
+
+        // Creates an HTML list item for an admin alert
+        function createAlertListItem(alert) {
+            const item = document.createElement('div');
+            let itemClass = 'submission-item p-3 border border-gray-200 rounded-md shadow-sm flex justify-between items-center bg-white';
+            
+            // Assign specific border colors based on alert type
+            if (alert.type === 'character_overwritten') {
+                itemClass += ' border-l-4 border-l-purple-500';
+            } else if (alert.type === 'whatsapp_joined') {
+                itemClass += ' border-l-4 border-l-teal-500';
+            } else if (alert.type === 'new_account_created') {
+                itemClass += ' border-l-4 border-l-indigo-500';
+            }
+
+            item.className = itemClass;
+            item.dataset.id = alert.id;
+            item.dataset.type = 'alert';
+            item.innerHTML = `
+                <div>
+                    <p class="font-semibold text-gray-800">${alert.message}</p>
+                    <p class="text-xs text-gray-600">ID Joueur: <span class="font-mono text-blue-600">${alert.userId || 'N/A'}</span></p>
+                    <p class="text-xs text-gray-500">Date: ${new Date(alert.timestamp).toLocaleString()}</p>
+                </div>
+            `;
+            return item;
+        }
+
+        // Displays the details of a selected submission or alert
+        function displaySelectedItem(type, data) {
+            currentSelectedItem = { type: type, data: data }; // Store the selected item
+            if (selectFormMessage) selectFormMessage.classList.add('hidden');
+            if (characterDetailsDiv) characterDetailsDiv.classList.remove('hidden');
+
+            // Reset all dynamic sections
+            document.getElementById('alertDetails').style.display = 'none';
+            document.getElementById('detailPlayerCardImageContainer').style.display = 'none';
+            document.getElementById('detailRefusalReasonsContainer').style.display = 'none';
+            document.getElementById('actionButtons').style.display = 'none'; // Hide all action buttons by default
+
+            document.getElementById('detailUserId').textContent = '';
+            document.getElementById('detailAvatarName').textContent = '';
+            document.getElementById('detailGender').textContent = '';
+            document.getElementById('detailPhone').textContent = '';
+            document.getElementById('detailRaces').innerHTML = '';
+            document.getElementById('detailClass').textContent = '';
+            document.getElementById('detailAttributes').innerHTML = '';
+            document.getElementById('detailSkills').innerHTML = '';
+            document.getElementById('detailMana').textContent = '';
+            document.getElementById('detailHealth').textContent = '';
+            document.getElementById('detailAgility').textContent = '';
+            document.getElementById('detailStrength').textContent = '';
+            document.getElementById('detailImage').src = '#';
+            document.getElementById('detailImageContainer').classList.add('hidden');
+            document.getElementById('noImageText').classList.remove('hidden');
+
+            // Logic for displaying submission details
+            if (type === 'submission') {
+                document.getElementById('detailUserId').textContent = data.userId;
+                document.getElementById('detailAvatarName').textContent = data.characterData.nomAvatar;
+                document.getElementById('detailGender').textContent = data.characterData.sexe;
+                document.getElementById('detailPhone').textContent = data.characterData.numeroTelephoneRoleplayer;
+
+                const detailStatusElement = document.getElementById('detailStatus');
+                detailStatusElement.textContent = '';
+                detailStatusElement.className = 'font-bold text-lg'; // Reset classes
+
+                // Display status and appropriate action buttons/details
+                if (data.status === 'pending') {
+                    detailStatusElement.textContent = 'En Attente';
+                    detailStatusElement.classList.add('text-orange-600');
+                    document.getElementById('actionButtons').style.display = 'flex'; // Show action buttons
+                    document.getElementById('refuseButton').style.display = 'inline-block'; // Show refuse
+                    document.getElementById('acceptButton').style.display = 'inline-block'; // Show accept
+                    document.getElementById('markAlertAsRead').style.display = 'none'; // Hide alert button
+                    
+                    document.getElementById('refuseButton').onclick = () => {
+                        window.location.href = `refusal_reasons.html?submissionId=${data.id}&userId=${data.userId}`;
+                    };
+                    document.getElementById('acceptButton').onclick = () => acceptSubmission(data.id, data.userId, data.characterData.nomAvatar);
+                } else if (data.status === 'refused') {
+                    detailStatusElement.textContent = 'Refusée';
+                    detailStatusElement.classList.add('text-red-600');
+                    document.getElementById('detailRefusalReasonsContainer').style.display = 'block';
+                    const detailRefusalReasons = document.getElementById('detailRefusalReasons');
+                    detailRefusalReasons.innerHTML = '';
+                    if (data.refusalDetails && data.refusalDetails.reasons && data.refusalDetails.reasons.length > 0) {
+                        data.refusalDetails.reasons.forEach(reason => {
+                            const li = document.createElement('li');
+                            li.textContent = reason;
+                            detailRefusalReasons.appendChild(li);
+                        });
+                    } else {
+                        detailRefusalReasons.innerHTML = '<li>Aucune raison prédéfinie.</li>';
+                    }
+                    document.getElementById('detailCustomReason').textContent = data.refusalDetails && data.refusalDetails.customReason ? `Raison personnalisée: ${data.refusalDetails.customReason}` : '';
+
+                } else if (data.status === 'overwritten') {
+                    detailStatusElement.textContent = 'Écrasée par le joueur';
+                    detailStatusElement.classList.add('text-gray-600');
+                } else if (data.status === 'accepted') {
+                    detailStatusElement.textContent = 'Acceptée (Carte en attente)';
+                    detailStatusElement.classList.add('text-yellow-600');
+                } else if (data.status === 'completed') {
+                    detailStatusElement.textContent = 'Acceptée (Carte envoyée)';
+                    detailStatusElement.classList.add('text-green-600');
+                    document.getElementById('detailPlayerCardImage').src = data.playerCardImage;
+                    document.getElementById('detailPlayerCardImageContainer').style.display = 'block';
+                }
+
+                // Populate character details common to all submission statuses
+                const detailRaces = document.getElementById('detailRaces');
+                if (detailRaces && data.characterData.races) {
+                    data.characterData.races.forEach(race => {
+                        const li = document.createElement('li');
+                        li.textContent = race;
+                        detailRaces.appendChild(li);
+                    });
+                }
+
+                if (document.getElementById('detailClass')) document.getElementById('detailClass').textContent = data.characterData.classe;
+
+                const detailAttributes = document.getElementById('detailAttributes');
+                if (detailAttributes && data.characterData.attributs) {
+                    data.characterData.attributs.forEach(attr => {
+                        const li = document.createElement('li');
+                        li.textContent = attr;
+                        detailAttributes.appendChild(li);
+                    });
+                }
+
+                const detailSkills = document.getElementById('detailSkills');
+                if (detailSkills && data.characterData.competencesUniques) {
+                    data.characterData.competencesUniques.forEach((skill, index) => {
+                        const skillDiv = document.createElement('div');
+                        skillDiv.className = 'p-2 bg-gray-100 rounded-md';
+                        skillDiv.innerHTML = `<p class="font-medium text-gray-700">${skill.name}</p><p class="text-sm text-gray-600">${skill.description}</p>`;
+                        detailSkills.appendChild(skillDiv);
+                    });
+                }
+
+                if (document.getElementById('detailMana')) document.getElementById('detailMana').textContent = data.characterData.statistiques.manaStamina;
+                if (document.getElementById('detailHealth')) document.getElementById('detailHealth').textContent = data.characterData.statistiques.vie;
+                if (document.getElementById('detailAgility')) document.getElementById('detailAgility').textContent = data.characterData.statistiques.agilite;
+                if (document.getElementById('detailStrength')) document.getElementById('detailStrength').textContent = data.characterData.statistiques.force;
+
+                const detailImage = document.getElementById('detailImage');
+                const detailImageContainer = document.getElementById('detailImageContainer');
+                const noImageText = document.getElementById('noImageText');
+                if (detailImage && detailImageContainer && noImageText) {
+                    if (data.characterData.image) {
+                        detailImage.src = data.characterData.image;
+                        detailImageContainer.classList.remove('hidden');
+                        noImageText.classList.add('hidden');
+                    } else {
+                        detailImage.src = "#";
+                        detailImageContainer.classList.add('hidden');
+                        noImageText.classList.remove('hidden');
+                    }
+                }
+
+            } else if (type === 'alert') { // Logic for displaying alert details
+                document.getElementById('detailUserId').textContent = data.userId || 'N/A';
+                document.getElementById('detailAvatarName').textContent = 'Alerte Système';
+                
+                const detailStatusElement = document.getElementById('detailStatus');
+                detailStatusElement.textContent = data.type.replace(/_/g, ' ').toUpperCase();
+                detailStatusElement.className = 'font-bold text-lg text-purple-600';
+
+                document.getElementById('alertDetails').style.display = 'block';
+                if (document.getElementById('alertMessage')) document.getElementById('alertMessage').textContent = data.message;
+                if (document.getElementById('alertType')) document.getElementById('alertType').textContent = data.type;
+                if (document.getElementById('alertUserId')) document.getElementById('alertUserId').textContent = data.userId || 'N/A';
+                if (document.getElementById('alertTimestamp')) document.getElementById('alertTimestamp').textContent = new Date(data.timestamp).toLocaleString();
+
+                document.getElementById('actionButtons').style.display = 'flex';
+                document.getElementById('refuseButton').style.display = 'none';
+                document.getElementById('acceptButton').style.display = 'none';
+                document.getElementById('markAlertAsRead').style.display = 'inline-block';
+
+                const markAlertButton = document.getElementById('markAlertAsRead');
+                if (markAlertButton && data.type === 'whatsapp_joined') {
+                    markAlertButton.textContent = 'Confirmer Adhésion WhatsApp';
+                    markAlertButton.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+                    markAlertButton.classList.add('bg-green-600', 'hover:bg-green-700');
+                    markAlertButton.onclick = () => {
+                        window.location.href = `whatsapp_admin_confirm.html?submissionId=${data.submissionId}&userId=${data.userId}&alertId=${data.id}`;
+                    };
+                } else if (markAlertButton) {
+                    markAlertButton.textContent = 'Marquer comme lu';
+                    markAlertButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    markAlertButton.classList.add('bg-purple-600', 'hover:bg-purple-700');
+                    markAlertButton.onclick = () => markAlertAsRead(data.id);
+                }
+            }
+        }
+
+        // Function to accept a submission via API
+        async function acceptSubmission(submissionId, userId, characterName) {
+            try {
+                const user = auth.currentUser;
+                const idToken = user ? await user.getIdToken() : null;
+                if (!idToken) {
+                    showMessage("Erreur d'authentification", "Veuillez vous reconnecter.");
+                    setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+                    return;
+                }
+
+                const response = await fetch('/api/submissions', {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}` 
+                    },
+                    body: JSON.stringify({ submissionId, status: 'accepted' })
+                });
+
+                if (response.ok) {
+                    showMessage("Soumission Acceptée", `Le formulaire pour "${characterName}" (ID Joueur: ${userId}) a été accepté. Redirection vers la page d'upload de la carte...`);
+                    loadAllData();
+                    setTimeout(() => {
+                        window.location.href = `admin_card_upload.html?submissionId=${submissionId}&userId=${userId}`;
+                    }, 1000);
+                } else {
+                    const errorResult = await response.json();
+                    showMessage("Erreur", errorResult.message || "Impossible d'accepter la soumission.");
+                }
+            } catch (error) {
+                console.error("Erreur réseau lors de l'acceptation de la soumission:", error);
+                showMessage("Erreur Réseau", "Impossible de communiquer avec le serveur.");
+            }
+        }
+
+        // Function to mark an alert as read (delete from DB) via API
+        async function markAlertAsRead(alertId) {
+            try {
+                const user = auth.currentUser;
+                const idToken = user ? await user.getIdToken() : null;
+                if (!idToken) {
+                    showMessage("Erreur d'authentification", "Veuillez vous reconnecter.");
+                    setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+                    return;
+                }
+
+                const response = await fetch(`/api/alerts?id=${alertId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+
+                if (response.ok) {
+                    showMessage("Alerte Marquée lue", "L'alerte a été supprimée.");
+                    loadAllData();
+                    if (currentSelectedItem && currentSelectedItem.type === 'alert' && currentSelectedItem.data.id === alertId) {
+                        if (characterDetailsDiv) characterDetailsDiv.classList.add('hidden');
+                        if (selectFormMessage) selectFormMessage.classList.remove('hidden');
+                        currentSelectedItem = null;
+                    }
+                } else {
+                    const errorResult = await response.json();
+                    showMessage("Erreur", errorResult.message || "Impossible de marquer l'alerte comme lue.");
+                }
+            } catch (error) {
+                console.error("Erreur réseau lors de la suppression de l'alerte:", error);
+                showMessage("Erreur Réseau", "Impossible de communiquer avec le serveur.");
+            }
+        }
+
+        // Event listeners for clicking on submission/alert items in the lists
+        [pendingSubmissionsList, refusedSubmissionsList, acceptedSubmissionsList, adminAlertsList].forEach(list => {
+            if (list) {
+                list.addEventListener('click', async (event) => {
+                    const item = event.target.closest('.submission-item');
+                    if (item) {
+                        document.querySelectorAll('.submission-item.selected').forEach(selectedItem => {
+                            selectedItem.classList.remove('selected');
+                        });
+                        item.classList.add('selected');
+
+                        const id = item.dataset.id;
+                        const type = item.dataset.type;
+
+                        try {
+                            const user = auth.currentUser;
+                            const idToken = user ? await user.getIdToken() : null;
+                            if (!idToken) {
+                                showMessage("Erreur d'authentification", "Veuillez vous reconnecter.");
+                                setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+                                return;
+                            }
+
+                            if (type === 'submission') {
+                                const submissionsResponse = await fetch('/api/submissions', { headers: { 'Authorization': `Bearer ${idToken}` } });
+                                if (!submissionsResponse.ok) throw new Error('Failed to fetch submissions');
+                                const submissions = await submissionsResponse.json();
+                                const submission = submissions.find(s => s.id === id);
+                                if (submission) {
+                                    displaySelectedItem(type, submission);
+                                }
+                            } else if (type === 'alert') {
+                                const alertsResponse = await fetch('/api/alerts', { headers: { 'Authorization': `Bearer ${idToken}` } });
+                                if (!alertsResponse.ok) throw new Error('Failed to fetch alerts');
+                                const alerts = await alertsResponse.json();
+                                const alert = alerts.find(a => a.id === id);
+                                if (alert) {
+                                    displaySelectedItem(type, alert);
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error fetching data for details:', error);
+                            showMessage("Erreur de Détails", "Impossible de charger les détails. Vérifiez la connexion ou votre statut admin.");
+                        }
+                    }
+                });
+            }
+        });
+
+        // Admin Logout functionality
+        if (adminLogoutButton) {
+            adminLogoutButton.addEventListener('click', async () => {
+                try {
+                    await auth.signOut();
+                    localStorage.removeItem('iwUserAccount'); // Clear localStorage
+                    showMessage("Déconnexion Admin", "Vous avez été déconnecté. Redirection...");
+                    setTimeout(() => {
+                        window.location.href = 'login.html'; // Redirect to login page
+                    }, 1000);
+                } catch (error) {
+                    console.error("Erreur de déconnexion Admin:", error);
+                    showMessage("Erreur", "Impossible de vous déconnecter pour le moment.");
+                }
+            });
+        }
+
+        // Initial check for admin role and then load data
+        document.addEventListener('DOMContentLoaded', checkAdminRoleAndRedirect);
+        if (globalRefreshButton) {
+            globalRefreshButton.addEventListener('click', loadAllData);
+        }
+    </script>
+</body>
+</html> 
