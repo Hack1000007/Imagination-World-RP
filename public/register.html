@@ -144,6 +144,11 @@
             auth = firebase.auth();
             db = firebase.firestore();
 
+            // --- NOUVEAU LOG POUR VÉRIFIER L'INITIALISATION ---
+            console.log("DOMContentLoaded fired.");
+            console.log("Firebase initialized:", { appInitialized: !!app, authInstance: !!auth, dbInstance: !!db });
+            // --- FIN NOUVEAU LOG ---
+
             // Références aux éléments DOM
             const registerForm = document.getElementById('registerForm');
             const firstNameInput = document.getElementById('firstName');
@@ -216,15 +221,28 @@
                     }
                     
                     showMessage("Progression", "Validation réussie. Tentative de création du compte...");
+                    console.log("Validation réussie, préparation de la création du compte..."); // NOUVEAU LOG
 
                     try {
                         // 1. Création de l'utilisateur avec Firebase Authentication
+                        console.log("Tentative de création de l'utilisateur Firebase Auth pour l'email:", email); // NOUVEAU LOG
                         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                         const user = userCredential.user;
 
-                        showMessage("Progression", "Compte Firebase Auth créé avec succès. Enregistrement des détails dans Firestore...");
+                        // --- NOUVEAU LOG CRITIQUE ---
+                        console.log("Résultat de createUserWithEmailAndPassword. User object:", user);
+                        if (!user || !user.uid) {
+                            console.error("Erreur: user ou user.uid est null/undefined après createUserWithEmailAndPassword.");
+                            showMessage("Erreur Interne", "Impossible d'obtenir l'ID utilisateur après la création du compte. Contactez l'administrateur.");
+                            return; // Arrêter l'exécution ici si l'utilisateur n'est pas valide
+                        }
+                        // --- FIN NOUVEAU LOG CRITIQUE ---
+
+                        showMessage("Progression", "Compte Firebase Auth créé avec succès. UID: " + user.uid + ". Enregistrement des détails dans Firestore...");
+                        console.log("Compte Firebase Auth créé avec succès. UID:", user.uid); // NOUVEAU LOG
 
                         // 2. Stockage des données utilisateur supplémentaires dans Firestore
+                        console.log("Tentative d'enregistrement dans Firestore pour l'UID:", user.uid); // NOUVEAU LOG
                         await db.collection("users").doc(user.uid).set({
                             userId: user.uid, 
                             firstName: firstName,
@@ -238,6 +256,7 @@
                         });
 
                         showMessage("Progression", "Détails utilisateur enregistrés dans Firestore. Redirection...");
+                        console.log("Détails utilisateur enregistrés dans Firestore."); // NOUVEAU LOG
 
                         // 3. Stockage des informations de base de l'utilisateur dans localStorage
                         localStorage.setItem('iwUserAccount', JSON.stringify({
@@ -247,6 +266,7 @@
                             phone: phone || null,
                             role: 'user' 
                         }));
+                        console.log("Informations utilisateur stockées dans localStorage."); // NOUVEAU LOG
 
                         // Message final de succès et redirection
                         showMessage("Inscription Réussie !", `Bienvenue, ${username} ! Vous pouvez maintenant vous connecter.`);
@@ -256,7 +276,8 @@
 
                     } catch (error) {
                         // Gestion des erreurs Firebase Auth et Firestore
-                        console.error("Erreur lors de l'inscription Firebase:", error);
+                        console.error("Erreur lors de l'inscription Firebase (bloc catch):", error); // LOG D'ERREUR DÉTAILLÉ
+
                         let errorMessage = "Une erreur inattendue est survenue lors de l'inscription.";
 
                         switch (error.code) {
@@ -295,3 +316,5 @@
     </script>
 </body>
 </html>
+
+    
