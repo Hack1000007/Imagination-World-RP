@@ -113,7 +113,8 @@
     <!-- Chargement des SDK Firebase via CDN (version 8.10.1 - très compatible) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <!-- Firestore n'est plus directement utilisé côté client pour l'écriture initiale du profil -->
+    <!-- <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script> -->
 
     <script>
         // Configuration Firebase Client
@@ -129,7 +130,8 @@
 
         let app;
         let auth;
-        let db;
+        // db n'est plus nécessaire ici car l'écriture Firestore sera gérée par le backend
+        // let db; 
 
         // S'assurer que le DOM est complètement chargé avant d'exécuter le script
         document.addEventListener('DOMContentLoaded', () => {
@@ -140,13 +142,11 @@
                 app = firebase.app();
             }
             
-            // Récupération des instances Auth et Firestore
+            // Récupération de l'instance Auth
             auth = firebase.auth();
-            db = firebase.firestore();
-
             // --- NOUVEAU LOG POUR VÉRIFIER L'INITIALISATION ---
             console.log("DEBUG [register.html]: DOMContentLoaded déclenché.");
-            console.log("DEBUG [register.html]: Firebase initialisé:", { appInitialized: !!app, authInstance: !!auth, dbInstance: !!db });
+            console.log("DEBUG [register.html]: Firebase initialisé:", { appInitialized: !!app, authInstance: !!auth });
             // --- FIN NOUVEAU LOG ---
 
             // Références aux éléments DOM
@@ -238,23 +238,37 @@
                         }
                         // --- FIN LOG CRITIQUE ---
 
-                        showMessage("Progression", "Compte Firebase Auth créé avec succès. UID: " + user.uid + ". Enregistrement des détails dans Firestore...");
+                        showMessage("Progression", "Compte Firebase Auth créé avec succès. UID: " + user.uid + ". Enregistrement des détails via le backend...");
                         console.log("DEBUG [register.html]: Compte Firebase Auth créé avec succès. UID:", user.uid);
 
-                        // 2. Stockage des données utilisateur supplémentaires dans Firestore
-                        console.log("DEBUG [register.html]: Tentative d'enregistrement dans Firestore pour l'UID:", user.uid);
-                        await db.collection("users").doc(user.uid).set({
-                            userId: user.uid, 
-                            firstName: firstName,
-                            lastName: lastName,
-                            username: username,
-                            email: email,
-                            phone: phone || null,
-                            role: 'user', // Rôle par défaut
-                            createdAt: new Date().toISOString(), 
-                            messages: [] 
+                        // 2. Envoi des données utilisateur au backend pour l'enregistrement dans Firestore (Admin SDK)
+                        console.log("DEBUG [register.html]: Envoi des données au backend pour création du profil Firestore.");
+                        const response = await fetch('/api/create-profile', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                // Il est recommandé d'envoyer le token d'ID de l'utilisateur pour vérifier l'authenticité de la requête côté backend
+                                'Authorization': `Bearer ${await user.getIdToken()}`
+                            },
+                            body: JSON.stringify({
+                                userId: user.uid, 
+                                firstName: firstName,
+                                lastName: lastName,
+                                username: username,
+                                email: email,
+                                phone: phone || null,
+                                role: 'user', // Rôle par défaut
+                                createdAt: new Date().toISOString()
+                            })
                         });
-                        console.log("DEBUG [register.html]: Détails utilisateur enregistrés dans Firestore avec succès.");
+
+                        const backendResult = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(backendResult.message || `Erreur lors de la création du profil backend: ${response.status}`);
+                        }
+                        console.log("DEBUG [register.html]: Profil utilisateur enregistré dans Firestore via le backend. Réponse:", backendResult);
+
 
                         // 3. Stockage des informations de base de l'utilisateur dans localStorage
                         localStorage.setItem('iwUserAccount', JSON.stringify({
@@ -273,40 +287,37 @@
                         }, 1500);
 
                     } catch (error) {
-                        // Gestion des erreurs Firebase Auth et Firestore
-                        console.error("ERREUR [register.html]: Erreur lors de l'inscription Firebase (bloc catch):", error); // LOG D'ERREUR DÉTAILLÉ
+                        // Gestion des erreurs Firebase Auth et de l'appel backend
+                        console.error("ERREUR [register.html]: Erreur lors de l'inscription (bloc catch):", error); // LOG D'ERREUR DÉTAILLÉ
 
                         let errorMessage = "Une erreur inattendue est survenue lors de l'inscription.";
 
                         // Messages d'erreur spécifiques de Firebase Auth
-                        switch (error.code) {
-                            case 'auth/email-already-in-use':
-                                errorMessage = "Cette adresse e-mail est déjà utilisée. Veuillez vous connecter ou utiliser un autre email.";
-                                break;
-                            case 'auth/invalid-email':
-                                errorMessage = "L'adresse e-mail n'est pas valide.";
-                                break;
-                            case 'auth/weak-password':
-                                errorMessage = "Le mot de passe est trop faible. Il doit contenir au moins 6 caractères.";
-                                break;
-                            case 'auth/operation-not-allowed':
-                                errorMessage = "L'inscription par email/mot de passe n'est pas activée. Veuillez contacter l'administrateur du projet Firebase.";
-                                break;
-                            case 'auth/network-request-failed':
-                                errorMessage = "Erreur réseau. Vérifiez votre connexion internet.";
-                                break;
-                            // Erreurs Firestore (si la lecture/écriture Firestore échoue en raison des règles par exemple)
-                            case 'permission-denied':
-                                errorMessage = "Vous n'avez pas la permission d'effectuer cette action. Vérifiez les règles de sécurité Firestore.";
-                                console.error("DEBUG [register.html]: Erreur de permission Firestore détectée.");
-                                break;
-                            case 'unavailable':
-                            case 'internal':
-                                errorMessage = "Problème de connexion aux services Firebase. Veuillez vérifier votre connexion internet ou la configuration Firebase de votre projet.";
-                                break;
-                            default:
-                                errorMessage = `Erreur: ${error.message} (Code: ${error.code || 'Inconnu'})`;
-                                break;
+                        if (error.code && error.code.startsWith('auth/')) {
+                            switch (error.code) {
+                                case 'auth/email-already-in-use':
+                                    errorMessage = "Cette adresse e-mail est déjà utilisée. Veuillez vous connecter ou utiliser un autre email.";
+                                    break;
+                                case 'auth/invalid-email':
+                                    errorMessage = "L'adresse e-mail n'est pas valide.";
+                                    break;
+                                case 'auth/weak-password':
+                                    errorMessage = "Le mot de passe est trop faible. Il doit contenir au moins 6 caractères.";
+                                    break;
+                                case 'auth/operation-not-allowed':
+                                    errorMessage = "L'inscription par email/mot de passe n'est pas activée. Veuillez contacter l'administrateur du projet Firebase.";
+                                    break;
+                                case 'auth/network-request-failed':
+                                    errorMessage = "Erreur réseau. Vérifiez votre connexion internet.";
+                                    break;
+                                default:
+                                    errorMessage = `Erreur d'authentification: ${error.message} (Code: ${error.code})`;
+                                    break;
+                            }
+                        } else {
+                            // Erreurs provenant de l'appel backend (fetch)
+                            errorMessage = `Erreur du serveur lors de la création du profil: ${error.message}`;
+                            console.error("DEBUG [register.html]: Erreur backend détectée lors de la création du profil.");
                         }
                         showMessage("Erreur d'Inscription", errorMessage);
                     }
@@ -319,3 +330,5 @@
     </script>
 </body>
 </html>
+
+    
