@@ -3,7 +3,7 @@
 // dans Firestore en utilisant Firebase Admin SDK.
 // Cela contourne les règles de sécurité Firestore côté client, garantissant que le profil est toujours créé.
 
-import { db, adminAuth } from './firebase'; // Importe les instances Firestore et Auth Admin
+import { db, adminAuth } from './firebase.js'; // Importe les instances Firestore et Auth Admin
 
 export default async function handler(req, res) {
     console.log(`DEBUG [api/create-profile]: Requête reçue: ${req.method} ${req.url}`);
